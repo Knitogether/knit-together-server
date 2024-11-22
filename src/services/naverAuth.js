@@ -24,11 +24,12 @@ async function getNaverTokens(code, state) {
         grant_type: 'authorization_code',
         client_id: process.env.NAVER_CLIENT_ID,
         client_secret: process.env.NAVER_CLIENT_SECRET,
-        code,
-        state,
+        code: code,
+        state: state,
       },
     });
 
+    console.log(response.data);
     return response.data;
   } catch (error) {
     throw new Error('Failed to get tokens from Naver: ' + error.response?.data?.error_description || error.message);
@@ -43,20 +44,20 @@ async function getNaverUserInfo(access_token) {
       },
     });
 
-    const { id: naverId, email, name, profile_image: profileImage } = response.data.response;
-
-    return { naverId, email, name, profileImage };
+    const { id: providerId, email, nickname, profile_image: profileImage } = response.data.response;
+    
+    return { providerId, email, nickname, profileImage };
   } catch (error) {
     throw new Error('Failed to get user info from Naver: ' + error.response?.data?.message || error.message);
   }
 }
 
-async function findOrCreateUser({ naverId, email, name, profileImage }) {
+async function findOrCreateUser({ providerId, email, nickname, profileImage }) {
   try {
-    let user = await User.findOne({ naverId });
+    let user = await User.findOne({ providerId });
 
     if (!user) {
-      user = new User({ naverId, email, name, profileImage });
+      user = new User({ provider: 'naver', providerId, email, name: nickname, profileImage });
       await user.save();
     }
 
