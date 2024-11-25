@@ -9,9 +9,9 @@ const client = new OAuth2Client(
 );
 
 async function googleLogin(code) {
-    const { id_token } = await getGoogleTokens(code);  // 인가 코드로 구글 토큰 받기
-    const userInfo = await verifyGoogleIdToken(id_token); // id_token으로 사용자 정보 검증
-    let user = await findOrCreateUser(userInfo);  // 사용자 조회 또는 생성
+    const tokens = await getGoogleTokens(code);  // 인가 코드로 구글 토큰 받기
+    const userInfo = await verifyGoogleIdToken(tokens.id_token); // id_token으로 사용자 정보 검증
+    let user = await findOrCreateUser(userInfo, tokens);  // 사용자 조회 또는 생성
 
     const token = jwtService.generateToken({ userId: user._id, email: user.email }); // JWT 발급
     
@@ -43,12 +43,21 @@ async function verifyGoogleIdToken(id_token) {
   }
 }
 
-async function findOrCreateUser({ providerId, email, name, profileImage }) {
+async function findOrCreateUser({ providerId, email, name, profileImage }, tokens) {
   try {
     let user = await User.findOne({ providerId });
 
     if (!user) {
-      user = new User({ provider: 'google', providerId, email, name, profileImage });
+      user = new User({
+        provider: 'google',
+        providerId,
+        email,
+        name,
+        profileImage,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiresAt: tokens.expires_in,
+      });
       await user.save();
     }
 
