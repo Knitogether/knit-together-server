@@ -7,7 +7,7 @@ async function naverLogin(code, state) {
   try {
     const tokens = await getNaverTokens(code, state); // 네이버 액세스 토큰 요청
     const userInfo = await getNaverUserInfo(tokens.access_token); // 사용자 정보 요청
-    const user = await findOrCreateUser(userInfo); // 사용자 조회 또는 생성
+    const user = await findOrCreateUser(userInfo, tokens); // 사용자 조회 또는 생성
 
     const token = jwtService.generateToken({ userId: user._id, email: user.email }); // JWT 발급
     
@@ -52,12 +52,20 @@ async function getNaverUserInfo(access_token) {
   }
 }
 
-async function findOrCreateUser({ providerId, email, nickname, profileImage }) {
+async function findOrCreateUser({ providerId, email, nickname, profileImage }, tokens) {
   try {
     let user = await User.findOne({ providerId });
 
     if (!user) {
-      user = new User({ provider: 'naver', providerId, email, name: nickname, profileImage });
+      user = new User({
+        provider: 'naver',
+        providerId, email,
+        name: nickname,
+        profileImage,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiresAt: Date.now() + tokens.expires_in * 1000,
+      });
       await user.save();
     }
 
