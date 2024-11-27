@@ -24,9 +24,11 @@ async function getGoogleTokens(code) {
       code,
       access_type: 'offline',
     });
+    
     console.log(tokens);
     return tokens;
   } catch (error) {
+    console.error(error.response.data);
     throw new Error('Failed to get tokens from Google: ' + error.response?.data || error.message);
   }
 }
@@ -68,7 +70,7 @@ async function findOrCreateUser({ providerId, email, name, profileImage }, token
       user.refreshToken = tokens.refresh_token;
       user.tokenExpiresAt = tokens.expiry_date;
       user.updatedAt = Date.now();
-      
+
       await user.save();
     }
 

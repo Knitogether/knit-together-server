@@ -12,19 +12,19 @@ router.post('/google', async (req, res) => {
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: false,
+      sameSite: 'lax',
       maxAge: 30 * 60 * 1000, // 30분
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: false,
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     });
     
-    res.end();
+    res.status(200).json({ message: 'Welcome~^^ from google' });
   } catch (err) {
     console.error(err.message);
     res.status(400).json({ error: 'Google login failed' });
@@ -39,19 +39,19 @@ router.post('/naver', async (req, res) => {
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: false,
+      sameSite: 'none',
       maxAge: 30 * 60 * 1000, // 30분
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: false,
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     });
     
-    res.end();    
+    res.status(200).json({ message: 'Welcome~^^ from naver' });
   } catch (err) {
     console.error(err.message);
     //에러 메시지를 콘솔에만? 아니면 응답에 붙여서?
@@ -79,7 +79,7 @@ router.post('/refresh', async (req, res) => {
       maxAge: 30 * 60 * 1000, // 30분
     });
 
-    res.status(200);
+    res.status(200).json({ message: 'access token refreshed oOo~!' });
   } catch (err) {
     console.error('Invalid refresh token:', err.message);
     // 리프레시 토큰 만료 시 쿠키 제거 및 로그아웃 처리
