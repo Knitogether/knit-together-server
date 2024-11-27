@@ -24,7 +24,7 @@ router.post('/google', async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     });
     
-    res.status(200);
+    res.end();
   } catch (err) {
     console.error(err.message);
     res.status(400).json({ error: 'Google login failed' });
@@ -33,10 +33,25 @@ router.post('/google', async (req, res) => {
 
 // Naver 로그인 엔드포인트
 router.post('/naver', async (req, res) => {
-  const { code, state } = req.body;
   try {
-    const token = await naverAuth.naverLogin(code, state);
-    res.status(200).json({ message: 'Naver login successful', token });
+    const { code, state } = req.body;
+    const { accessToken, refreshToken } = await naverAuth.naverLogin(code, state);
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 30 * 60 * 1000, // 30분
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
+    });
+    
+    res.end();    
   } catch (err) {
     console.error(err.message);
     //에러 메시지를 콘솔에만? 아니면 응답에 붙여서?

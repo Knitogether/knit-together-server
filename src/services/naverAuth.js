@@ -9,9 +9,9 @@ async function naverLogin(code, state) {
     const userInfo = await getNaverUserInfo(tokens.access_token); // 사용자 정보 요청
     const user = await findOrCreateUser(userInfo, tokens); // 사용자 조회 또는 생성
 
-    const token = jwtService.generateTokens({ userId: user._id, email: user.email }); // JWT 발급
+    const { accessToken, refreshToken } = jwtService.generateTokens({ userId: user._id, email: user.email }); // JWT 발급
     
-    return token;
+    return { accessToken, refreshToken };
   } catch (error) {
     throw new Error(`Naver login failed: ${error.message}`);
   }
