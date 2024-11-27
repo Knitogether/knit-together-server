@@ -3,8 +3,10 @@ require('dotenv').config();
 
 function generateToken(payload) {
     try {
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-        return token;
+        const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30m' });
+        const refreshToken = jwt.sign({}, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        return { accessToken, refreshToken };
     } catch (err) {
         //new Error를 꼭 해야 되는가?
         throw new Error('Fail to generate JWT token');
