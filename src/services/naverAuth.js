@@ -7,7 +7,7 @@ async function naverLogin(code, state) {
   try {
     const tokens = await getNaverTokens(code, state); // 네이버 액세스 토큰 요청
     const userInfo = await getNaverUserInfo(tokens.access_token); // 사용자 정보 요청
-    const user = await findOrCreateUser(userInfo); // 사용자 조회 또는 생성
+    const user = await findOrCreateUser(userInfo, tokens); // 사용자 조회 또는 생성
 
     const token = jwtService.generateTokens({ userId: user._id, email: user.email }); // JWT 발급
     
@@ -24,11 +24,12 @@ async function getNaverTokens(code, state) {
         grant_type: 'authorization_code',
         client_id: process.env.NAVER_CLIENT_ID,
         client_secret: process.env.NAVER_CLIENT_SECRET,
-        code,
-        state,
+        code: code,
+        state: state,
       },
     });
 
+    console.log(response.data);
     return response.data;
   } catch (error) {
     throw new Error('Failed to get tokens from Naver: ' + error.response?.data?.error_description || error.message);
@@ -43,20 +44,28 @@ async function getNaverUserInfo(access_token) {
       },
     });
 
-    const { id: naverId, email, name, profile_image: profileImage } = response.data.response;
-
-    return { naverId, email, name, profileImage };
+    const { id: providerId, email, nickname, profile_image: profileImage } = response.data.response;
+    
+    return { providerId, email, nickname, profileImage };
   } catch (error) {
     throw new Error('Failed to get user info from Naver: ' + error.response?.data?.message || error.message);
   }
 }
 
-async function findOrCreateUser({ naverId, email, name, profileImage }) {
+async function findOrCreateUser({ providerId, email, nickname, profileImage }, tokens) {
   try {
-    let user = await User.findOne({ naverId });
+    let user = await User.findOne({ providerId });
 
     if (!user) {
-      user = new User({ naverId, email, name, profileImage });
+      user = new User({
+        provider: 'naver',
+        providerId, email,
+        name: nickname,
+        profileImage,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiresAt: Date.now() + tokens.expires_in * 1000,
+      });
       await user.save();
     }
 
