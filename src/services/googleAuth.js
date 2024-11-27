@@ -20,8 +20,11 @@ async function googleLogin(code) {
 
 async function getGoogleTokens(code) {
   try {
-    const { tokens } = await client.getToken(code);
-
+    const { tokens } = await client.getToken({
+      code,
+      access_type: 'offline',
+    });
+    console.log(tokens);
     return tokens;
   } catch (error) {
     throw new Error('Failed to get tokens from Google: ' + error.response?.data || error.message);
@@ -56,8 +59,16 @@ async function findOrCreateUser({ providerId, email, name, profileImage }, token
         profileImage,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
-        tokenExpiresAt: tokens.expires_in,
+        tokenExpiresAt: tokens.expiry_date,
       });
+      await user.save();
+    }
+    else if (tokens.refresh_token) {
+      user.accessToken = tokens.access_token;
+      user.refreshToken = tokens.refresh_token;
+      user.tokenExpiresAt = tokens.expiry_date;
+      user.updatedAt = Date.now();
+      
       await user.save();
     }
 
