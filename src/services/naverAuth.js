@@ -9,7 +9,7 @@ async function naverLogin(code, state) {
     const userInfo = await getNaverUserInfo(tokens.access_token); // 사용자 정보 요청
     const user = await findOrCreateUser(userInfo); // 사용자 조회 또는 생성
 
-    const token = jwtService.generateToken({ userId: user._id, email: user.email }); // JWT 발급
+    const token = jwtService.generateTokens({ userId: user._id, email: user.email }); // JWT 발급
     
     return token;
   } catch (error) {

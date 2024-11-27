@@ -13,7 +13,7 @@ async function googleLogin(code) {
     const userInfo = await verifyGoogleIdToken(tokens.id_token); // id_token으로 사용자 정보 검증
     let user = await findOrCreateUser(userInfo, tokens);  // 사용자 조회 또는 생성
 
-    const { accessToken, refreshToken } = jwtService.generateToken({ userId: user._id }); // JWT 발급
+    const { accessToken, refreshToken } = jwtService.generateTokens({ userId: user._id }); // JWT 발급
 
     return {accessToken, refreshToken };
 }

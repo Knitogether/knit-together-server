@@ -55,7 +55,7 @@ router.post('/refresh', async (req, res) => {
     // Refresh Token 검증
     const decoded = jwtService.verifyToken(refreshToken);
     // Access Token 재발급
-    const accessToken = jwtService.generateToken({ userId: decoded.userId });
+    const accessToken = jwtService.generateAccessToken({ userId: decoded.userId });
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
