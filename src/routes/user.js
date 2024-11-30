@@ -1,3 +1,33 @@
+/**
+ * @swagger
+ * /api/user/me:
+ *   get:
+ *     summary: My profile
+ *     tags: [User]
+ *     responses:
+ *       200:
+ *         description: return user profile(id, email, name, image, role, level)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 profileImage:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                 level:
+ *                   type: number
+ *       401:
+ *         description: Invalid credentials
+ */
+
 const express = require('express');
 const router = express.Router();
 const jwtService = require('../services/jwtService'); // JWT 관련 함수들 (verifyToken 등)
@@ -6,6 +36,7 @@ const User = require('../../models/User'); // 유저 데이터베이스 모델
 router.get('/me', async (req, res) => {
     try {
         console.log(req.headers);
+        console.log(req.cookies);
         const accessToken = req.headers.authorization.split('Bearer ')[1];
       
         // 2. JWT 토큰 검증
