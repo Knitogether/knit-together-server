@@ -4,6 +4,7 @@ const userRoutes = require('./routes/user');
 const connectDB = require('../config/db');
 const app = express();
 const cors = require('cors');
+const { swaggerUi, swaggerDocs } = require('../swagger/swagger');
 
 const PORT = 8000;
 require('dotenv').config();
@@ -19,6 +20,9 @@ app.use(cors({
   methods: 'GET,POST,PUT,DELETE', // 허용할 HTTP 메서드
   credentials: true               // 쿠키 및 인증 정보 허용
 }));
+
+//swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
