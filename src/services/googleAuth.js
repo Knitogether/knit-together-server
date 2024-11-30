@@ -44,7 +44,7 @@ async function verifyGoogleIdToken(id_token) {
 
     return { providerId, email, name, profileImage };
   } catch (error) {
-    throw new Error('Failed to verify Google ID token: ' + error.response?.data || error.message);
+    throw new Error('Failed to verify Google ID token: ' + error.message);
   }
 }
 
@@ -58,7 +58,7 @@ async function findOrCreateUser({ providerId, email, name, profileImage }, token
         providerId,
         email,
         name,
-        profileImage,
+        profileImage: profileImage || null,
         role: 'Guest',
         level: 0,
         accessToken: tokens.access_token,

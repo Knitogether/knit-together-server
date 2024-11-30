@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   name: { type: String, required: true },
-  profileImage: { type: String },
+  profileImage: { type: String, default: null },
   role: { type: String },
   level: { type: Number },
   provider: { type: String, required: true }, // 'google' or 'naver'
