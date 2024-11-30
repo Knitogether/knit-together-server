@@ -1,8 +1,8 @@
 const express = require('express');
+const router = express.Router();
 const googleAuth = require('../services/googleAuth');
 const naverAuth = require('../services/naverAuth');
 const jwtService = require('../services/jwtService');
-const router = express.Router();
 
 // Google 로그인 엔드포인트
 router.post('/google', async (req, res) => {
@@ -23,10 +23,10 @@ router.post('/google', async (req, res) => {
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     });
-    
-    res.status(200).json({ message: 'Welcome~^^ from google' });
-  } catch (err) {
-    console.error(err.message);
+    res.status(200).json({ message: 'Welcome~^^ from google', accessToken: accessToken, refreshToken: refreshToken });
+    res.send();
+  } catch (error) {
+    console.error(error.message);
     res.status(400).json({ error: 'Google login failed' });
   }
 });
@@ -40,19 +40,19 @@ router.post('/naver', async (req, res) => {
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: false,
-      sameSite: 'none',
+      sameSite: 'lax',
       maxAge: 30 * 60 * 1000, // 30분
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: false,
-      sameSite: 'none',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     });
     
-    res.status(200).json({ message: 'Welcome~^^ from naver' });
-  } catch (err) {
+    res.status(200).json({ message: 'Welcome~^^ from naver', accessToken: accessToken, refreshToken: refreshToken });
+  } catch (error) {
     console.error(err.message);
     //에러 메시지를 콘솔에만? 아니면 응답에 붙여서?
     res.status(500).json({ error: 'Naver login failed' });
@@ -60,9 +60,10 @@ router.post('/naver', async (req, res) => {
 });
 
 router.post('/refresh', async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
-
-  if (!refreshToken) {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+  } catch (error) {
+    console.error('No refreshToken in cookie');
     return res.status(401).json({ error: 'Refresh token is missing' });
   }
 
@@ -74,14 +75,14 @@ router.post('/refresh', async (req, res) => {
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
+      secure: false,
+      sameSite: 'lax',
       maxAge: 30 * 60 * 1000, // 30분
     });
 
     res.status(200).json({ message: 'access token refreshed oOo~!' });
-  } catch (err) {
-    console.error('Invalid refresh token:', err.message);
+  } catch (error) {
+    console.error('Invalid refresh token:', error.message);
     // 리프레시 토큰 만료 시 쿠키 제거 및 로그아웃 처리
     res.clearCookie('refreshToken', { path: '/', sameSite: 'strict', secure: true });
     res.clearCookie('accessToken', { path: '/', sameSite: 'strict', secure: true });
