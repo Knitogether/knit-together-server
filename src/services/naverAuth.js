@@ -1,5 +1,5 @@
 const axios = require('axios');
-const jwtService = require('./jwtService');
+const jwtService = require('../services/jwtService');
 const User = require('../../models/User');
 require('dotenv').config();
 
@@ -62,6 +62,8 @@ async function findOrCreateUser({ providerId, email, nickname, profileImage }, t
         providerId, email,
         name: nickname,
         profileImage,
+        role: 'Guest',
+        level: 0,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         tokenExpiresAt: Date.now() + tokens.expires_in * 1000,
