@@ -1,5 +1,6 @@
 const express = require('express');
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
 const connectDB = require('../config/db');
 const app = express();
 const cors = require('cors');
@@ -19,8 +20,9 @@ app.use(cors({
   credentials: true               // 쿠키 및 인증 정보 허용
 }));
 
-// 인증 라우트 추가
 app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
