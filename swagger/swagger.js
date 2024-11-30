@@ -11,17 +11,17 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3000",
+        url: "http://localhost:8000",
         description: "Local server",
       },
     ],
   },
-  apis: ["./src/routes/*.js", "./swagger/*"],
+  apis: ["src/routes/*.js"],
 };
 
-const specs = swaggerJsDoc(options);
+const swaggerDocs = swaggerJsDoc(options);
 
 module.exports = {
   swaggerUi,
-  specs,
+  swaggerDocs,
 };
