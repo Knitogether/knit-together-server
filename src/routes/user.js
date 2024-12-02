@@ -32,16 +32,11 @@ const express = require('express');
 const router = express.Router();
 const jwtService = require('../services/jwtService'); // JWT 관련 함수들 (verifyToken 등)
 const User = require('../../models/User'); // 유저 데이터베이스 모델
+const authMiddleware = require('../middlewares/authMiddleware');
 
-router.get('/me', async (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
     try {
-        console.log(req.headers);
-        console.log(req.cookies);
-        const accessToken = req.headers.authorization.split('Bearer ')[1];
-      
-        // 2. JWT 토큰 검증
-        const decoded = jwtService.verifyToken(accessToken); // decode된 payload에는 userId 포함
-        const userId = decoded.userId;
+        const userId = req.user.userId;
         
         // 3. 유저 정보 조회
         const user = await User.findById(userId); // 비밀번호 등 민감 정보 제외

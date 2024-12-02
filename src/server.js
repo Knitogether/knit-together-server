@@ -5,6 +5,7 @@ const connectDB = require('../config/db');
 const app = express();
 const cors = require('cors');
 const { swaggerUi, swaggerDocs } = require('../swagger/swagger');
+const authMiddleware = require('./middlewares/authMiddleware');
 
 const PORT = 8000;
 require('dotenv').config();
@@ -25,7 +26,7 @@ app.use(cors({
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
+app.use('/api/user', authMiddleware, userRoutes);
 
 
 app.listen(PORT, () => {
