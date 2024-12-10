@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const roomRoutes = require('./routes/room');
 const connectDB = require('../config/db');
 const app = express();
 const cors = require('cors');
@@ -27,6 +28,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', authMiddleware, userRoutes);
+app.use('/api/room', authMiddleware, roomRoutes);
 
 
 app.listen(PORT, () => {
