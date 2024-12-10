@@ -3,8 +3,8 @@ require('dotenv').config();
 
 function generateTokens(payload) {
     try {
-        const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30m' });
-        const refreshToken = jwt.sign({}, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1m' });
+        const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
         return { accessToken, refreshToken };
     } catch (error) {
@@ -15,7 +15,8 @@ function generateTokens(payload) {
 
 function generateAccessToken(payload) {
   try {
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30m' });
+    console.log('generate AccessToken: ', payload);
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1m' });
 
     return accessToken;
   } catch (error) {
