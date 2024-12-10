@@ -163,9 +163,10 @@ router.post('/naver', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    console.log(refreshToken);
+    console.log('refreshToken: ', refreshToken);
     // Refresh Token 검증
     const decoded = jwtService.verifyToken(refreshToken);
+    
     // Access Token 재발급
     const accessToken = jwtService.generateAccessToken({ userId: decoded.userId });
 
