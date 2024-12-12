@@ -9,6 +9,13 @@ const roomSchema = new mongoose.Schema({
   maxKnitter: { type: Number, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
+  participants: [
+    {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // User 참조
+      role: { type: String, enum: ['Host', 'Member'], default: 'member' },
+      joinedAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 module.exports = mongoose.model('Room', roomSchema);
