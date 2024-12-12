@@ -154,7 +154,7 @@ router.post('/naver', async (req, res) => {
     
     res.status(200).json({ message: 'Welcome~^^ from naver', accessToken: accessToken, refreshToken: refreshToken });
   } catch (error) {
-    console.error(err.message);
+    console.error(error.message);
     //에러 메시지를 콘솔에만? 아니면 응답에 붙여서?
     res.status(500).json({ error: 'Naver login failed' });
   }
