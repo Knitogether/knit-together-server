@@ -6,6 +6,7 @@ const Participant = require('../../models/Participant');
 const bcrypt = require('bcrypt');
 
 router.post('/create', authMiddleware, async (req, res) => {
+  console.log('room/create');
   try {
     const { title, thumbnail, description, isPrivate, password, maxKnitter } = req.body;
 
@@ -35,6 +36,7 @@ router.post('/create', authMiddleware, async (req, res) => {
 });
 
 router.get('/list', authMiddleware, async (req, res) => {
+  console.log('room/list');
   try {
       const rooms = await Room.find({}, 'title thumbnail description isPrivate maxKnitter');
       res.status(200).json({ rooms });
@@ -45,6 +47,7 @@ router.get('/list', authMiddleware, async (req, res) => {
 });
 
 router.post('/join', authMiddleware, async (req, res) => {
+  console.log('room/join');
   try {
     const { userId, roomId } = req.body;
     const room = await Room.findById(roomId);

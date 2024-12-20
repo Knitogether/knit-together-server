@@ -107,6 +107,7 @@ const jwtService = require('../services/jwtService');
 
 // Google 로그인 엔드포인트
 router.post('/google', async (req, res) => {
+  console.log('auth/google');
   try {
     const { code } = req.body;
     const { accessToken, refreshToken } = await googleAuth.googleLogin(code);
@@ -134,6 +135,7 @@ router.post('/google', async (req, res) => {
 
 // Naver 로그인 엔드포인트
 router.post('/naver', async (req, res) => {
+  console.log('auth/naver');
   try {
     const { code, state } = req.body;
     const { accessToken, refreshToken } = await naverAuth.naverLogin(code, state);
@@ -163,7 +165,7 @@ router.post('/naver', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    console.log('refreshToken: ', refreshToken);
+    console.log('/refresh: ', refreshToken);
     // Refresh Token 검증
     const decoded = jwtService.verifyToken(refreshToken);
     
@@ -196,6 +198,7 @@ router.post('/refresh', async (req, res) => {
 });
 
 router.post('/logout', async (req, res) => {
+  console.log('auth/logout');
   try {
     res.clearCookie("accessToken", {
       httpOnly: true,

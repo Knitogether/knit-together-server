@@ -19,7 +19,7 @@ connectDB();
 // CORS 설정
 app.use(cors({
   origin: 'http://localhost:3000', // 허용할 출처 (프론트엔드 URL)
-  methods: 'GET,POST,PUT,DELETE', // 허용할 HTTP 메서드
+  methods: 'GET,POST,PATCH,PUT,DELETE', // 허용할 HTTP 메서드
   credentials: true               // 쿠키 및 인증 정보 허용
 }));
 
