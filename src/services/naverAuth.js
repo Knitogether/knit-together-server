@@ -66,10 +66,16 @@ async function findOrCreateUser({ providerId, email, nickname, profileImage }, t
         level: 0,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
-        tokenExpiresAt: Date.now() + tokens.expires_in * 1000,
+        tokenExpiresAt: Date.now() + tokens.expires_in * 100,
       });
-      await user.save();
     }
+    else {
+      user.accessToken = tokens.access_token;
+      user.refreshToken = tokens.refresh_token;
+      user.tokenExpiresAt = Date.now() + tokens.expires_in * 100;
+      user.updatedAt = Date.now();
+    }
+    await user.save();
 
     return user;
   } catch (error) {

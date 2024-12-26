@@ -67,7 +67,7 @@ async function findOrCreateUser({ providerId, email, name, profileImage }, token
       });
       await user.save();
     }
-    else if (tokens.refresh_token) {
+    else {
       user.accessToken = tokens.access_token;
       user.refreshToken = tokens.refresh_token;
       user.tokenExpiresAt = tokens.expiry_date;
