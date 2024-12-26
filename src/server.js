@@ -1,9 +1,15 @@
 const express = require('express');
+const http = require('http');
+const initWebSocket = require('./websocket/websocket');
+
+const app = express();
+const server = http.createServer(app);
+const wss = initWebSocket.Server(server);
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const roomRoutes = require('./routes/room');
 const connectDB = require('../config/db');
-const app = express();
 const cors = require('cors');
 const { swaggerUi, swaggerDocs } = require('../swagger/swagger');
 const authMiddleware = require('./middlewares/authMiddleware');
@@ -31,6 +37,6 @@ app.use('/api/user', authMiddleware, userRoutes);
 app.use('/api/room', authMiddleware, roomRoutes);
 
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

@@ -14,7 +14,7 @@ router.post('/create', authMiddleware, async (req, res) => {
       ? await bcrypt.hash(password, 10)
       : null;
 
-    const newRoom = new Room({
+    const newRoom = await Room.create({
       title,
       thumbnail,
       description,
@@ -22,9 +22,14 @@ router.post('/create', authMiddleware, async (req, res) => {
       password: hashedPassword,
       maxKnitter,
       createdBy: req.user.userId, // 인증된 사용자 ID
+      participants: [
+        {
+          userId: req.user.userId,
+          role: 'Host', // 방 생성자는 관리자
+        },
+      ],
     });
-    await newRoom.save();
-
+    //조인 함수 실행 필요? 아니면 여기다가 따로 조인 로직?
     res.status(201).json({
       roomId: newRoom._id,
       message: 'Room created successfully.',
@@ -50,26 +55,20 @@ router.post('/join', authMiddleware, async (req, res) => {
   console.log('room/join');
   try {
     const { userId, roomId } = req.body;
-    const room = await Room.findById(roomId);
-    
-    // if (!room) {
-    //   return res.status(404).json({ message: 'Room not found' });
-    // }
+    let room = await Room.findById(roomId);
 
-    const participant = await Participant.create({
+    room.participants.push({
       userId,
-      roomId,
       role: 'member',
     });
-    await participant.save();
+    await room.save();
     
     res.status(200).json({
       message: 'Joined room successfully',
-      participant,
     });
   } catch (error) {
     console.error('Room join error:' + error.message);
-    res.status(500).json({ message: 'Failed to join room' });
+    res.status(400).json({ message: 'Failed to join room' });
   }
 });
 
