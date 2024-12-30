@@ -6,7 +6,7 @@ require('dotenv').config();
 // Google Cloud Storage 설정
 const storage = new Storage({
   projectId: 'knit-together-441608',
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS, // 키 파일 경로
+  keyFilename: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS), // 키 파일 경로
 });
 
 const bucket = storage.bucket('knit-together-bucket');

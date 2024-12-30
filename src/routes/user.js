@@ -6,7 +6,7 @@
  *     tags: [User]
  *     responses:
  *       200:
- *         description: return user profile(id, email, name, image, role, level)
+ *         description: return user profile(id, email, name, image, role, level, exp)
  *         content:
  *           application/json:
  *             schema:
@@ -26,6 +26,59 @@
  *                   type: number
  *       401:
  *         description: Invalid credentials
+ * 
+ * /api/user/wip:
+ *   get:
+ *     summary: My work in progress
+ *     tags: [User]
+ *     responses:
+ *       200:
+ *         description: return participating room (title, thumbnail, description, isPrivate, knitters)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userRooms:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       thumbnail:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       isPrivate:
+ *                         type: boolean
+ *                       knitters:
+ *                         type: number
+ *       400:
+ *         description: Fail 
+ *       401:
+ *         description: Invalid credentials
+ * 
+ * /api/user/edit:
+ *   patch:
+ *     summary: Edit user profile
+ *     tags: [User]
+ *     responses:
+ *       200:
+ *         description: Successfully edit profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Fail to edit
+ *       401:
+ *         description: Invalid credentials
  */
 
 const express = require('express');
@@ -33,32 +86,59 @@ const router = express.Router();
 const User = require('../../models/User'); // 유저 데이터베이스 모델
 const authMiddleware = require('../middlewares/authMiddleware');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
+const Participant = require('../../models/Participant');
 
 router.get('/me', authMiddleware, async (req, res) => {
   console.log('user/me');
-    try {
-        const userId = req.user.userId;
-        
-        // 3. 유저 정보 조회
-        const user = await User.findById(userId); // 비밀번호 등 민감 정보 제외
-        if (!user) {
-          //이거 필요한가?
-          return res.status(404).json({ error: 'User not found' });
-        }
-        
-        // 4. 유저 정보 응답
-        res.status(200).json({
-          id: user._id,
-          email: user.email,
-          name: user.name,
-          profileImage: user.profileImage,
-          role: user.role,
-          level: user.level,
-        });
-    } catch (error) {
-        console.error(error.message);
-        res.status(401).json({ error: 'Failed to fetch user information' });
+  try {
+    const userId = req.user.userId;
+      
+    // 3. 유저 정보 조회
+    const user = await User.findById(userId); // 비밀번호 등 민감 정보 제외
+    if (!user) {
+      //이거 필요한가?
+      return res.status(404).json({ error: 'User not found' });
     }
+        
+    // 4. 유저 정보 응답
+    res.status(200).json({
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      profileImage: user.profileImage,
+      role: user.role,
+      level: user.level,
+      exp: user.exp,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(401).json({ error: 'Failed to fetch user information' });
+  }
+});
+
+router.get('/wip', authMiddleware, async (req, res) => {
+  console.log('user/wip');
+  try {
+    const userId = req.user.userId;
+    const userRooms = await Room.aggregate([
+      {
+        $project: {
+          title: 1,
+          thumbnail: 1,
+          description: 1,
+          isPrivate: 1,
+          knitters: { $size: '$participants' },
+        }
+      },
+      {
+        $match: { 'participants.userId': userId }
+      }
+    ]);
+    res.status(200).json({ userRooms });
+  } catch (error) {
+    console.error('Failed to get user WIP: ' + error.message);
+    res.status(400).json({ message: 'Failed to get user WIP' });
+  }
 });
 
 router.patch('/edit', authMiddleware, uploadHandler.single('profileImage'), async (req, res) => {

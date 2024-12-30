@@ -61,6 +61,7 @@ async function findOrCreateUser({ providerId, email, name, profileImage }, token
         profileImage: profileImage || null,
         role: 'Guest',
         level: 0,
+        exp: 0,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         tokenExpiresAt: tokens.expiry_date,

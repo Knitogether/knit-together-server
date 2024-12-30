@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   profileImage: { type: String, default: null },
   role: { type: String },
   level: { type: Number },
+  exp: { type: Number },
   provider: { type: String, required: true }, // 'google' or 'naver'
   providerId: { type: String, required: true, unique: true }, // OAuth 제공자 ID
   accessToken: { type: String }, // 액세스 토큰

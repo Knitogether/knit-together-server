@@ -1,3 +1,78 @@
+/**
+ * @swagger
+ * /api/room/create:
+ *   post:
+ *     summary: Create knitting room
+ *     tags: [Room]
+ *     responses:
+ *       201:
+ *         description: return created room id
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 roomId:
+ *                   type: string
+ *       400:
+ *         description: Fail 
+ *       401:
+ *         description: Invalid credentials
+ * 
+ * /api/room/list:
+ *   get:
+ *     summary: Load knitting room list
+ *     tags: [Room]
+ *     responses:
+ *       200:
+ *         description: return room list(id, title, thumbnail, description, isPrivate, knitters)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 rooms:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       thumbnail:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       isPrivate:
+ *                         type: boolean
+ *                       knitters:
+ *                         type: number
+ *       400:
+ *         description: Fail 
+ *       401:
+ *         description: Invalid credentials
+ * 
+ * /api/room/join:
+ *   post:
+ *     summary: Join in the room
+ *     tags: [Room]
+ *     responses:
+ *       200:
+ *         description: Successfully join in the room
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Already in room or Fail to join
+ *       401:
+ *         description: Invalid credentials
+ */
+
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -52,11 +127,21 @@ router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async 
 router.get('/list', async (req, res) => {
   console.log('room/list');
   try {
-      const rooms = await Room.find({}, 'title thumbnail description isPrivate');
-      res.status(200).json({ rooms });
+    const rooms = await Room.aggregate([
+      {
+        $project: {
+          title: 1,
+          thumbnail: 1,
+          description: 1,
+          isPrivate: 1,
+          knitters: { $size: '$participants' }, // MongoDB에서 배열 길이 계산
+        },
+      },
+    ]);
+    res.status(200).json({ rooms });
   } catch (error) {
-      console.error('Room list error: ' + error.message);
-      res.status(400).json({ message: 'Failed to load room list' });
+    console.error('Room list error: ' + error.message);
+    res.status(400).json({ message: 'Failed to load room list' });
   }
 });
 
