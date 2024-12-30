@@ -4,23 +4,32 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const Room = require('../../models/Room');
 const Participant = require('../../models/Participant');
 const bcrypt = require('bcrypt');
+const { uploadHandler, uploadToGCS } = require('../../config/storage');
 
-router.post('/create', authMiddleware, async (req, res) => {
+router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async (req, res) => {
   console.log('room/create');
   try {
-    const { title, thumbnail, description, isPrivate, password, maxKnitter } = req.body;
+    console.log(req.body);
+    const { title, thumbnail, description, isPrivate, password } = req.body;
+    
+    let isPrivateBoolean;
+    if (isPrivate === "false") isPrivateBoolean = false;
+    else if (isPrivate === "true") isPrivateBoolean = true;
 
-    const hashedPassword = isPrivate
+    const hashedPassword = isPrivateBoolean
       ? await bcrypt.hash(password, 10)
       : null;
 
+    let thumbnailUrl;
+    if (req.file) thumbnailUrl = await uploadToGCS(req.file, 'thumbnail');
+    else thumbnailUrl = thumbnail;
+
     const newRoom = await Room.create({
       title,
-      thumbnail,
+      thumbnail: thumbnailUrl,
       description,
-      isPrivate,
+      isPrivate: isPrivateBoolean,
       password: hashedPassword,
-      maxKnitter,
       createdBy: req.user.userId, // 인증된 사용자 ID
       participants: [
         {
@@ -40,10 +49,10 @@ router.post('/create', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/list', authMiddleware, async (req, res) => {
+router.get('/list', async (req, res) => {
   console.log('room/list');
   try {
-      const rooms = await Room.find({}, 'title thumbnail description isPrivate maxKnitter');
+      const rooms = await Room.find({}, 'title thumbnail description isPrivate');
       res.status(200).json({ rooms });
   } catch (error) {
       console.error('Room list error: ' + error.message);
@@ -51,12 +60,24 @@ router.get('/list', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/join', authMiddleware, async (req, res) => {
+router.post('/join/:roomId', authMiddleware, async (req, res) => {
   console.log('room/join');
   try {
-    const { userId, roomId } = req.body;
+    const userId = req.user.userId;
+    const { roomId } = req.params;
     let room = await Room.findById(roomId);
 
+    if (room.isPrivate) {
+      const { password } = req.body;
+      const isPasswordValid = await bcrypt.compare(password, room.password);
+      if (!isPasswordValid) return res.status(403).json({ message: 'Invalid password.' });
+    }
+
+    const isAlreadyParticipant = room.participants.some(participant => participant.userId === userId);
+    if (isAlreadyParticipant) {
+      return res.status(400).json({ message: 'You are already in the room.' });
+    }
+    
     room.participants.push({
       userId,
       role: 'member',
