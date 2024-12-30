@@ -11,7 +11,7 @@ const roomSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   participants: [
     {
-      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // User 참조
+      userId: { type: String }, // User 참조 안 하고 그냥 스트링으로
       role: { type: String, enum: ['Host', 'Member'], default: 'member' },
       joinedAt: { type: Date, default: Date.now },
     },

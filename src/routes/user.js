@@ -83,7 +83,8 @@
 
 const express = require('express');
 const router = express.Router();
-const User = require('../../models/User'); // 유저 데이터베이스 모델
+const User = require('../../models/User');
+const Room = require('../../models/Room');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
 const Participant = require('../../models/Participant');
@@ -122,6 +123,11 @@ router.get('/wip', authMiddleware, async (req, res) => {
     const userId = req.user.userId;
     const userRooms = await Room.aggregate([
       {
+        $match: {
+          "participants.userId": userId
+        }
+      },
+      {
         $project: {
           title: 1,
           thumbnail: 1,
@@ -129,9 +135,6 @@ router.get('/wip', authMiddleware, async (req, res) => {
           isPrivate: 1,
           knitters: { $size: '$participants' },
         }
-      },
-      {
-        $match: { 'participants.userId': userId }
       }
     ]);
     res.status(200).json({ userRooms });

@@ -104,14 +104,13 @@ router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async 
       isPrivate: isPrivateBoolean,
       password: hashedPassword,
       createdBy: req.user.userId, // 인증된 사용자 ID
-      participants: [
-        {
-          userId: req.user.userId,
-          role: 'Host', // 방 생성자는 관리자
-        },
-      ],
+      participants: [{
+        userId: req.user.userId, // userId를 명시적으로 넣어야 합니다.
+        role: 'Host',
+      }],
     });
-    //조인 함수 실행 필요? 아니면 여기다가 따로 조인 로직?
+    await newRoom.save();
+
     res.status(201).json({
       roomId: newRoom._id,
       message: 'Room created successfully.',
