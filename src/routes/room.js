@@ -50,8 +50,6 @@
  *                         type: number
  *       400:
  *         description: Fail 
- *       401:
- *         description: Invalid credentials
  * 
  * /api/room/join:
  *   post:
