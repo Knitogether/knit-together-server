@@ -51,13 +51,13 @@
  *       400:
  *         description: Fail 
  * 
- * /api/room/join:
+ * /api/room/verify/:roomId:
  *   post:
- *     summary: Join in the room
+ *     summary: Join in the private room(verify password)
  *     tags: [Room]
  *     responses:
  *       200:
- *         description: Successfully join in the room
+ *         description: Password verified.
  *         content:
  *           application/json:
  *             schema:
@@ -66,7 +66,7 @@
  *                 message:
  *                   type: string
  *       400:
- *         description: Already in room or Fail to join
+ *         description: Already in room or Invalid password
  *       401:
  *         description: Invalid credentials
  */
@@ -142,8 +142,8 @@ router.get('/list', async (req, res) => {
   }
 });
 
-router.post('/join/:roomId', authMiddleware, async (req, res) => {
-  console.log('room/join');
+router.post('/verify/:roomId', authMiddleware, async (req, res) => {
+  console.log('room/verify');
   try {
     const userId = req.user.userId;
     const { roomId } = req.params;
@@ -151,8 +151,8 @@ router.post('/join/:roomId', authMiddleware, async (req, res) => {
 
     if (room.isPrivate) {
       const { password } = req.body;
-      const isPasswordValid = await bcrypt.compare(password, room.password);
-      if (!isPasswordValid) return res.status(403).json({ message: 'Invalid password.' });
+      const isPasswordValid = bcrypt.compare(password, room.password);
+      if (!isPasswordValid) return res.status(400).json({ message: 'Invalid password.' });
     }
 
     const isAlreadyParticipant = room.participants.some(participant => participant.userId === userId);
@@ -167,7 +167,7 @@ router.post('/join/:roomId', authMiddleware, async (req, res) => {
     await room.save();
     
     res.status(200).json({
-      message: 'Joined room successfully',
+      message: 'Password Verified.',
     });
   } catch (error) {
     console.error('Room join error:' + error.message);
