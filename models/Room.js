@@ -16,6 +16,12 @@ const roomSchema = new mongoose.Schema({
       joinedAt: { type: Date, default: Date.now },
     },
   ],
+  blocked: [
+    {
+      userId: { type: String },
+      blockedAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 module.exports = mongoose.model('Room', roomSchema);

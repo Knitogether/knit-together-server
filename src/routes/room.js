@@ -103,9 +103,9 @@ router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async 
       description,
       isPrivate: isPrivateBoolean,
       password: hashedPassword,
-      createdBy: req.user.userId, // 인증된 사용자 ID
+      createdBy: req.user.userId,
       participants: [{
-        userId: req.user.userId, // userId를 명시적으로 넣어야 합니다.
+        userId: req.user.userId,
         role: 'Host',
       }],
     });

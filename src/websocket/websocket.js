@@ -100,18 +100,52 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('kick', (targetUserId) => {
+    socket.on('kick', async (targetUserId) => {
       try {
+        if (!isHost(socket.currentRoom, socket.userId))
+          throw new CustomError("USER_002", "You are not a host.");
+        
         const targetSocket = userSocketMap[targetUserId];
-        wsServer.to(targetSocket).emit();
+
+        const result = await Room.updateOne(
+          { _id: socket.currentRoom },
+          {
+            $push: { blocked: { userId: targetUserId } }, // 차단 리스트 추가
+            $pull: { participants: { userId: targetUserId } } // 참가자 목록에서 제거
+          }
+        );
+        if (result.matchedCount === 0)
+          throw new CustomError("ROOM_001", "해당 방을 찾을 수 없습니다.");
+        if (result.modifiedCount === 0)
+          throw new CustomError("USER_003", "해당 유저를가 이미 차단되었거나 참가자 목록에 없습니다."); 
+        
+        wsServer.to(targetSocket).emit('kicked');
+
       } catch (error) {
         console.error("kick error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
       }
     });
 
+    socket.on('leave', async () => {
+      try {
+        const result = await Room.updateOne(
+          { _id: socket.currentRoom },
+          { $pull: { participants: { userId: targetUserId } } }
+        );
+        if (result.matchedCount === 0)
+          throw new CustomError("ROOM_001", "해당 방을 찾을 수 없습니다.");
+        if (result.modifiedCount === 0)
+          throw new CustomError("USER_003", "해당 유저를가 이미 차단되었거나 참가자 목록에 없습니다."); 
+
+      } catch(error) {
+        console.error("leave error", error.message);
+        socket.emit('error', { code: error.code, message: error.message });
+      }
+    });
+
     socket.on('disconnecting', () => {
-      const sender = makeChatUser(socket, roomId);
+      const sender = makeChatUser(socket, socket.currentRoom);
       wsServer.to(socket.currentRoom).emit('bye', { 
         id: uuidv4,
         sender,
@@ -218,5 +252,15 @@ async function makeChatMessage(socket, roomId, content) {
   
   return message;
 }
+
+async function isHost(roomId, userId) {
+  const room = await Room.findById(roomId).lean();
+  if (!room) throw new CustomError("ROOM_001", "방을 찾을 수 없습니다.");
+
+  const participant = room.participants.find(p => p.userId === userId);
+  if (!participant) throw new CustomError("USER_001", "없는 유저입니다.");
+  return participant?.role === "Host";
+};
+
 
 module.exports = initWebSocket;
