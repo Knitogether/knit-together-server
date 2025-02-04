@@ -3,8 +3,8 @@ const http = require('http');
 const initWebSocket = require('./websocket/websocket');
 
 const app = express();
-const server = http.createServer(app);
-const wss = initWebSocket(server);
+const httpServer = http.createServer(app);
+const wsServer = initWebSocket(httpServer);
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -37,6 +37,6 @@ app.use('/api/user', authMiddleware, userRoutes);
 app.use('/api/room', roomRoutes);
 
 
-server.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
