@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   profileImage: { type: String, default: null },
-  role: { type: String },
+  role: { type: String, default: 'Guest' },
   level: { type: Number },
   exp: { type: Number },
   provider: { type: String, required: true }, // 'google' or 'naver'
