@@ -103,7 +103,7 @@ function initWebSocket(httpServer) {
       try {
         const message = makeChatMessage(socket, socket.currentRoom, content);
         const recipient = roomSockets[socket.currentRoom].find((p) => p.userId === recipientId);
-        wsServer.to(recipient.socketId).emit('new-message', message);
+        socket.to(recipient.socketId).emit('new-message', message);
 
       } catch (error) {
         console.error("send-broadcast error", error.message);
@@ -131,10 +131,44 @@ function initWebSocket(httpServer) {
         if (result.modifiedCount === 0)
           throw new CustomError("USER_003", "해당 유저를가 이미 차단되었거나 참가자 목록에 없습니다."); 
         
-        wsServer.to(target.socketId).emit('kicked');
+        socket.to(target.socketId).emit('kicked');
 
       } catch (error) {
         console.error("kick error", error.message);
+        socket.emit('error', { code: error.code, message: error.message });
+      }
+    });
+
+    socket.on('offer', (offer) => {
+      try {
+        const room = roomSockets[socket.currentRoom];
+        if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
+    
+        for (const user of room) {
+          if (user.userId === socket.userId) continue;    
+          socket.to(user.socketId).emit('offer', offer);
+        }
+
+      } catch (error) {
+        console.error("offer error", error.message);
+        socket.emit('error', { code: error.code, message: error.message });
+      }
+    });
+
+    socket.on('answer', (answer, targetId) => {
+      try {
+        socket.to(targetId).emit('answer', answer);
+      } catch (error) {
+        console.error("answer error", error.message);
+        socket.emit('error', { code: error.code, message: error.message });
+      }
+    });
+
+    socket.on('ICE', (ice, targetId) => {
+      try {
+        socket.to(targetId).emit('ICE', ice);
+      } catch (error) {
+        console.error("ICE error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
       }
     });
@@ -190,10 +224,9 @@ async function sendRoomInfo(wsServer, roomId) {
     if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
 
     for (const user of room) {
-      const userSocket = wsServer.sockets.sockets.get(user.socketId);
       const roomInfo = await getRoomInfo(roomId, user.userId);
 
-      userSocket.emit('room-info', roomInfo);
+      wsServer.to(user.socketId).emit('room-info', roomInfo);
     }
 
   } catch (error) {
