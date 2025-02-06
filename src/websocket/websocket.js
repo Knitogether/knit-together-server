@@ -85,7 +85,7 @@ function initWebSocket(httpServer) {
         socket.disconnect();
       }
 
-      await sendRoomInfo(wsServer, socket, roomId);
+      await sendRoomInfo(wsServer, roomId);
     });
 
     socket.on('send-broadcast', async (content) => {
@@ -176,6 +176,7 @@ function initWebSocket(httpServer) {
     });
 
     socket.on('disconnect', () => {
+      sendRoomInfo(wsServer, socket.roomId);
       console.log('WebSocket connection closed.');
     });
   });
@@ -183,7 +184,7 @@ function initWebSocket(httpServer) {
   return wsServer;
 }
 
-async function sendRoomInfo(wsServer, socket, roomId) {
+async function sendRoomInfo(wsServer, roomId) {
   try {
     const room = roomSockets[roomId];
     if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
@@ -197,8 +198,8 @@ async function sendRoomInfo(wsServer, socket, roomId) {
 
   } catch (error) {
     console.error(`Failed to send room info for room ${roomId}:`, error.message);
-    socket.emit('error', { code: error.code, message: error.message });
-    if (error.code === "ROOM_001") socket.disconnect();
+    wsServer.to(roomId).emit('error', { code: error.code, message: error.message });
+    // if (error.code === "ROOM_001") socket.disconnect();
   }
 };
 
