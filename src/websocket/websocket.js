@@ -43,8 +43,8 @@ function initWebSocket(httpServer) {
           (participant) => participant.userId === socket.userId
         );
 
-        if (room.isPrivate) {
-          if (!isAlreadyParticipant) {
+        if (!isAlreadyParticipant) {
+          if (room.isPrivate) {
             if (password === undefined)
               throw new CustomError("JOIN_001", "비밀번호를 입력하세요.");
 
@@ -53,12 +53,13 @@ function initWebSocket(httpServer) {
               throw new CustomError("JOIN_002", "비번 틀렸대요~");
           }
         }
-        else {
-          if (!isAlreadyParticipant) {
-            room.participants.push({ userId:socket.userId, role: "Member" });
-            await room.save();
-          }
-        }
+
+        const numSockets = await io.in(roomId).allSockets().size;
+        if (numSockets >= 4)
+          throw new CustomError("JOIN_004", "정원 초과입니다.");
+        
+        room.participants.push({ userId:socket.userId, role: "Member" });
+        await room.save();
 
         socket.join(roomId);
         const curRoom = roomSockets[roomId] || [];
