@@ -124,18 +124,21 @@ router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async 
 router.get('/list', async (req, res) => {
   console.log('room/list');
   try {
-    const rooms = await Room.aggregate([
-      {
-        $project: {
-          title: 1,
-          thumbnail: 1,
-          description: 1,
-          isPrivate: 1,
-          knitters: { $size: '$participants' }, // MongoDB에서 배열 길이 계산
-        },
-      },
-    ]);
-    res.status(200).json({ rooms });
+    const rooms = await Room.find();
+    const roomInfo = await Promise.all(
+      rooms.map(async (room) => {
+        const clients = await io.in(room._id.toString()).allSockets();
+        return {
+          title: room.title,
+          thumbnail: room.thumbnail,
+          description: room.description,
+          isPrivate: room.isPrivate,
+          knitters: clients.size, // 현재 소켓 연결 수
+        };
+      })
+    );
+    res.status(200).json({ roomInfo });
+
   } catch (error) {
     console.error('Room list error: ' + error.message);
     res.status(400).json({ message: 'Failed to load room list' });
