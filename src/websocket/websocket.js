@@ -74,12 +74,24 @@ function initWebSocket(httpServer) {
         socket.currentRoom = roomId;
 
         const sender = makeChatUser(socket, roomId);
-
-        socket.to(roomId).emit('new-user', { senderId: socket.userId });
         wsServer.to(roomId).emit('welcome', {
           id: uuidv4,
           sender,
         });
+
+        const members = await Promise.all(
+          room.map(async (participant) => {
+            const user = await User.findById(participant.userId).lean();
+            if (!uesr || user._id === socket.userId) return null;
+            return {
+              id: user._id.toString(),
+              username: user.name,
+              profileImage: user.profileImage,
+              isHost: participant.isHost,
+            };
+          })
+        );
+        socket.emit('connect-members', members);
         
       } catch (error) {
         console.error("socket join error: ", error.message);
@@ -88,6 +100,7 @@ function initWebSocket(httpServer) {
       }
 
       await sendRoomInfo(wsServer, roomId);
+      await sendParticipantsInfo(roomId);
     });
 
     socket.on('send-broadcast', async (content) => {
@@ -224,8 +237,8 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('disconnect', () => {
-      sendRoomInfo(wsServer, socket.roomId);
+    socket.on('disconnect', async () => {
+      await sendParticipantsInfo(socket.currentRoom);
       console.log('WebSocket connection closed.');
     });
   });
@@ -237,12 +250,14 @@ async function sendRoomInfo(wsServer, roomId) {
   try {
     const room = roomSockets[roomId];
     if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
+    const roomModel = await Room.findById(roomId).lean();
 
-    for (const user of room) {
-      const roomInfo = await getRoomInfo(roomId, user.userId);
-
-      wsServer.to(user.socketId).emit('room-info', roomInfo);
+    const roomInfo = {
+      roomId: roomModel._id.toString(),
+      title: roomModel.title,
+      description: roomModel.description,
     }
+    wsServer.to(roomId).emit('room-info', roomInfo);
 
   } catch (error) {
     console.error(`Failed to send room info for room ${roomId}:`, error.message);
@@ -251,10 +266,7 @@ async function sendRoomInfo(wsServer, roomId) {
   }
 };
 
-const getRoomInfo = async (roomId, userId) => {
-  const roomModel = await Room.findById(roomId).lean();
-  if (!roomModel) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
-
+async function sendParticipantsInfo(roomId) {
   const room = roomSockets[roomId];
 
   const members = await Promise.all(
@@ -270,13 +282,12 @@ const getRoomInfo = async (roomId, userId) => {
     })
   );
 
-  return {
-    roomId: roomModel._id.toString(),
-    title: roomModel.title,
-    description: roomModel.description,
-    user: members.find((member) => member.id === userId), // 현재 유저 정보
-    members: members.filter((member) => member.id !== userId), // 나 제외한 멤버들
-  };
+  for (const user of room) {
+    wsServer.to(user.userId).emit('participants-info', {
+      user: members.find((member) => member.id === user.userId),
+      members: members.find((member) => member.id !== user.userId),
+    });
+  }
 };
 
 async function makeChatUser(socket, roomId) {
