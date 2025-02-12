@@ -75,6 +75,7 @@ function initWebSocket(httpServer) {
 
         const sender = makeChatUser(socket, roomId);
 
+        socket.to(roomId).emit('new-user', { senderId: socket.userId });
         wsServer.to(roomId).emit('welcome', {
           id: uuidv4,
           sender,
@@ -114,7 +115,7 @@ function initWebSocket(httpServer) {
 
     socket.on('kick', async (targetUserId) => {
       try {
-        const me = roomSockets[roomId].find((p) => p.userId === socket.userId);
+        const me = roomSockets[socket.currentRoom].find((p) => p.userId === socket.userId);
         if (!me.isHost)
           throw new CustomError("USER_002", "You are not a host.");
         
@@ -147,7 +148,10 @@ function initWebSocket(httpServer) {
     
         for (const user of room) {
           if (user.userId === socket.userId) continue;    
-          socket.to(user.socketId).emit('offer', offer);
+          socket.to(user.socketId).emit('offer', {
+            offer: offer,
+            senderId: socket.userId,
+          });
         }
 
       } catch (error) {
@@ -156,18 +160,28 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('answer', (answer, targetId) => {
+    socket.on('answer', (data) => {
       try {
-        socket.to(targetId).emit('answer', answer);
+        const target = roomSockets[socket.currentRoom].find((p) => p.userId === data.targetId);
+        socket.to(target.socketId).emit('answer', {
+          answer: data.answer,
+          senderId: socket.userId,
+        });
+
       } catch (error) {
         console.error("answer error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
       }
     });
 
-    socket.on('ICE', (ice, targetId) => {
+    socket.on('ICE', (data) => {
       try {
-        socket.to(targetId).emit('ICE', ice);
+        const target = roomSockets[socket.currentRoom].find((p) => p.userId === data.targetId);
+        socket.to(target.socketId).emit('ICE', {
+          ice: data.ice,
+          senderId: socket.userId,
+        });
+
       } catch (error) {
         console.error("ICE error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
@@ -176,34 +190,34 @@ function initWebSocket(httpServer) {
 
     socket.on('disconnecting', async () => {
       try {
-        const sender = makeChatUser(socket, socket.currentRoom);
-        wsServer.to(socket.currentRoom).emit('bye', { 
-          id: uuidv4,
-          sender,
-        });
-
         const room = roomSockets[socket.currentRoom];
         if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
-
+        
         const user = room.find((p) => p.userId === socket.userId);
         const userIndex = room.findIndex((p) => p.userId === socket.userId);
         if (!user || userIndex === -1) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
-
+        
         const userModel = await User.findById(socket.userId);
         if (!userModel) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
-
+        
         const inTime = (new Date() - user.joinedAt)/1000;
         const earnExp = (inTime / Math.pow(3, userModel.level+1) * 100).toFixed(2);
-
+        
         userModel.exp += earnExp;
         if (userModel.exp >= 100) {
           userModel.level += 1;
           userModel.exp = user.exp + earnExp - 100;
         }
         await userModel.save();
-
+        
         room.splice(userIndex, 1);
-
+        
+        const sender = makeChatUser(socket, socket.currentRoom);
+        wsServer.to(socket.currentRoom).emit('bye', { 
+          id: uuidv4,
+          sender,
+        });
+        
       } catch (error) {
         console.error("disconnecting error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
