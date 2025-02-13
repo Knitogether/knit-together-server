@@ -69,6 +69,34 @@
  *         description: Already in room or Invalid password
  *       401:
  *         description: Invalid credentials
+ * 
+ * /api/room/leave/:roomId:
+ *   patch:
+ *     summary: Leave room completely(delete from wip)
+ *     tags: [Room]
+ *     responses:
+ *       200:
+ *         description: Left the room.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       200:
+ *         description: Delete the room as last host left.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Fail to leave??no user??no room??
+ *       401:
+ *         description: Invalid credentials
  */
 
 const express = require('express');
@@ -173,8 +201,56 @@ router.post('/verify/:roomId', authMiddleware, async (req, res) => {
       message: 'Password Verified.',
     });
   } catch (error) {
-    console.error('Room join error:' + error.message);
+    console.error('Room join error: ' + error.message);
     res.status(400).json({ message: 'Failed to join room' });
+  }
+});
+
+router.patch('/leave/:roomId', authMiddleware, async (req, res) => {
+  console.log('room/leave');
+  try {
+    const userId = req.user.userId;
+    const { roomId } = req.params;
+    const room = await Room.findById(roomId);
+    const leaver = room.participants.find((p) => p.userId === userId)
+    const updateQuery = { $pull: { participants: { userId: userId } } };
+    
+    //나가는 사람이 방장일 경우
+    if (leaver.role === 'Host') {
+      //마지막 1명일 때
+      if (room.participants.length === 1) {
+        await Room.deleteOne({ _id: roomId });
+        return res.status(204).json({ message: "Room deleted as last host left" });
+      }
+
+      const newHost = await Room.aggregate([
+        { $match: { _id: roomId } },
+        { $unwind: "$participants" },
+        { $match: { "participants.userId": { $ne: userId } } },
+        { $sort: { "participants.joinedAt": 1 } },
+        { $limit: 1 }
+      ]);
+
+      if (newHost.length > 0) {
+        updateQuery.$set = { "participants.$[elem].role": "Host" };
+      }
+    }
+
+    // 방 정보 업데이트
+    await Room.updateOne(
+      { _id: roomId },
+      updateQuery,
+      {
+        arrayFilters: newHost.length > 0
+          ? [{ "elem.userId": newHost[0].participants.userId }]
+          : undefined
+      }
+    );
+    res.status(200).json({ message: 'Left the room.'});
+
+  } catch (error) {
+    console.error('Leave room error: ' + error.message);
+    res.status(400).json({ message: 'Failed to leave room' });
   }
 });
 
