@@ -30,7 +30,10 @@ function initWebSocket(httpServer) {
   wsServer.on('connection', (socket) => {
     console.log('WebSocket connection established.');
 
-    socket.on('join', async (roomId, password) => {
+    socket.on('join', async (data) => {
+      const roomId = data.roomId;
+      const password = data.password;
+
       try {
         const room = await Room.findById(roomId);
 
@@ -92,6 +95,7 @@ function initWebSocket(httpServer) {
           })
         );
         socket.emit('connect-members', members);
+        socket.to(roomId).emit('new-user', socket.userId);
         
       } catch (error) {
         console.error("socket join error: ", error.message);
@@ -114,8 +118,10 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('send-dm', (recipientId, content) => {
+    socket.on('send-dm', (data) => {
       try {
+        const recipientId = data.recipientId;
+        const content = data.content;
         const message = makeChatMessage(socket, socket.currentRoom, content);
         const recipient = roomSockets[socket.currentRoom].find((p) => p.userId === recipientId);
         socket.to(recipient.socketId).emit('new-message', message);
@@ -230,6 +236,7 @@ function initWebSocket(httpServer) {
           id: uuidv4,
           sender,
         });
+        socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
         
       } catch (error) {
         console.error("disconnecting error", error.message);
@@ -267,26 +274,32 @@ async function sendRoomInfo(wsServer, roomId) {
 };
 
 async function sendParticipantsInfo(roomId) {
-  const room = roomSockets[roomId];
+  try {
+    const room = roomSockets[roomId];
 
-  const members = await Promise.all(
-    room.map(async (participant) => {
-      const user = await User.findById(participant.userId).lean();
-      if (!uesr) return null;
-      return {
-        id: user._id.toString(),
-        username: user.name,
-        profileImage: user.profileImage,
-        isHost: participant.isHost,
-      };
-    })
-  );
+    const members = await Promise.all(
+      room.map(async (participant) => {
+        const user = await User.findById(participant.userId).lean();
+        if (!uesr) return null;
+        return {
+          id: user._id.toString(),
+          username: user.name,
+          profileImage: user.profileImage,
+          isHost: participant.isHost,
+        };
+      })
+    );
 
-  for (const user of room) {
-    wsServer.to(user.userId).emit('participants-info', {
-      user: members.find((member) => member.id === user.userId),
-      members: members.find((member) => member.id !== user.userId),
-    });
+    for (const user of room) {
+      wsServer.to(user.userId).emit('participants-info', {
+        user: members.find((member) => member.id === user.userId),
+        members: members.find((member) => member.id !== user.userId),
+      });
+    }
+
+  } catch(error) {
+    console.error(`Failed to send participants info for room ${roomId}:`, error.message);
+    wsServer.to(roomId).emit('error', { code: error.code, message: error.message });
   }
 };
 
