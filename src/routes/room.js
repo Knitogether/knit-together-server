@@ -84,7 +84,7 @@
  *               properties:
  *                 message:
  *                   type: string
- *       200:
+ *       204:
  *         description: Delete the room as last host left.
  *         content:
  *           application/json:
