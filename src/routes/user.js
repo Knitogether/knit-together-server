@@ -129,6 +129,8 @@ router.get('/wip', authMiddleware, async (req, res) => {
       },
       {
         $project: {
+          _id: 0, 
+          id: "$_id",  // _id를 id로 변경
           title: 1,
           thumbnail: 1,
           description: 1,
