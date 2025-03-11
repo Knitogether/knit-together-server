@@ -24,5 +24,4 @@ jobs:
           script: |
             cd /home/ubuntu/knit-together
             git pull origin dev
-            npm install
-            npm run dev
+            pm2 reload ./config/ecosystem.config.js
