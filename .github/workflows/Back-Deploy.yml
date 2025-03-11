@@ -22,7 +22,7 @@ jobs:
           key: ${{ secrets.KEY }}
           port: ${{ secrets.PORT }}
           script: |
-            cd /home/ubuntu/knit-together-server
+            cd /home/ubuntu/knit-together
             git pull origin dev
             npm install
             npm run dev
