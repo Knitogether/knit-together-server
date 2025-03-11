@@ -1,6 +1,6 @@
 const express = require('express');
 const http = require('http');
-const initWebSocket = require('./websocket/websocket');
+const { initWebSocket } = require('./websocket/websocket');
 
 const app = express();
 const httpServer = http.createServer(app);
