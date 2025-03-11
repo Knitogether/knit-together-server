@@ -5,8 +5,8 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   profileImage: { type: String, default: null },
   role: { type: String, default: 'Guest' },
-  level: { type: Number },
-  exp: { type: Number },
+  level: { type: Number, default: 0 },
+  exp: { type: Number , default: 0 },
   provider: { type: String, required: true }, // 'google' or 'naver'
   providerId: { type: String, required: true, unique: true }, // OAuth 제공자 ID
   accessToken: { type: String }, // 액세스 토큰
