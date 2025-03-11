@@ -155,7 +155,7 @@ router.get('/list', async (req, res) => {
     const rooms = await Room.find();
     const roomInfo = await Promise.all(
       rooms.map(async (room) => {
-        const clients = roomSockets[room._id.toString()].length;
+        const clients = roomSockets[room._id.toString()]?.length || 0;
         return {
           id: room._id.toString(),
           title: room.title,
