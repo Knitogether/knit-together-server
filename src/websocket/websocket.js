@@ -250,6 +250,7 @@ function initWebSocket(httpServer) {
         }).then(() => {
           socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
           room.splice(userIndex, 1);
+          socket.leave(socket.currentRoom);
         }).catch((error) => {
           throw error;
         });
@@ -372,4 +373,4 @@ async function isBlockedUser(room, userId) {
     throw new CustomError("JOIN_003", "감히 쫓겨난 녀석이 대문을 두드리느냐");
 }
 
-module.exports = initWebSocket;
+module.exports = { initWebSocket, roomSockets };

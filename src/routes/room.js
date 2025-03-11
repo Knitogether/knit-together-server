@@ -103,9 +103,9 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 const Room = require('../../models/Room');
-const Participant = require('../../models/Participant');
 const bcrypt = require('bcrypt');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
+const { roomSockets } = require('../websocket/websocket');
 
 router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async (req, res) => {
   console.log('room/create');
@@ -155,13 +155,14 @@ router.get('/list', async (req, res) => {
     const rooms = await Room.find();
     const roomInfo = await Promise.all(
       rooms.map(async (room) => {
-        const clients = await io.in(room._id.toString()).allSockets();
+        const clients = roomSockets[room._id.toString()].length;
         return {
+          id: room._id.toString(),
           title: room.title,
           thumbnail: room.thumbnail,
           description: room.description,
           isPrivate: room.isPrivate,
-          knitters: clients.size, // 현재 소켓 연결 수
+          knitters: clients, // 현재 소켓 연결 수
         };
       })
     );
