@@ -10,6 +10,7 @@ const roomSockets = {};
 
 function initWebSocket(httpServer) {
   const wsServer = socketIO(httpServer, {
+    path: "/ws",
     cors: {
       origin: ["http://localhost:3000"],
       methods: ["GET", "POST"],
@@ -50,6 +51,7 @@ function initWebSocket(httpServer) {
 
         isBlockedUser(room, socket.userId);
 
+        //이거 제대로 안 되는 듯? 왜 저래..
         const isAlreadyParticipant = room.participants.find(
           (participant) => participant.userId === socket.userId
         );
@@ -59,7 +61,7 @@ function initWebSocket(httpServer) {
             if (password === undefined)
               throw new CustomError("JOIN_001", "비밀번호를 입력하세요.");
 
-            const isPasswordValid = bcrypt.compare(password, room.password);
+            const isPasswordValid = await bcrypt.compare(password, room.password);
             if (!isPasswordValid)
               throw new CustomError("JOIN_002", "비번 틀렸대요~");
           }
