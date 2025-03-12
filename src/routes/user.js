@@ -87,7 +87,7 @@ const User = require('../../models/User');
 const Room = require('../../models/Room');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
-const Participant = require('../../models/Participant');
+const { roomSockets } = require('../websocket/websocket');
 
 router.get('/me', authMiddleware, async (req, res) => {
   console.log('user/me');
@@ -135,11 +135,15 @@ router.get('/wip', authMiddleware, async (req, res) => {
           thumbnail: 1,
           description: 1,
           isPrivate: 1,
-          knitters: { $size: '$participants' },
         }
       }
     ]);
-    res.status(200).json({ userRooms });
+    const roomsWithSockets = userRooms.map(room => ({
+      ...room,
+      knitters: roomSockets[room.id]?.length || 0, // 현재 접속 중인 인원 추가
+    }));
+
+    res.status(200).json({ userRooms: roomsWithSockets });
   } catch (error) {
     console.error('Failed to get user WIP: ' + error.message);
     res.status(400).json({ message: 'Failed to get user WIP' });
