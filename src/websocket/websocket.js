@@ -95,7 +95,7 @@ function initWebSocket(httpServer) {
         });
 
         const members = await Promise.all(
-          curRoom.map(async (participant) => {
+          roomSockets[roomId].map(async (participant) => {
             const user = await User.findById(participant.userId).lean();
             if (!user || user._id === socket.userId) return null;
             return {
