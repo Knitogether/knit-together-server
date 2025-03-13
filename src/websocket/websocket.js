@@ -76,6 +76,8 @@ function initWebSocket(httpServer) {
         socket.join(roomId);
         if (!roomSockets[roomId])
           roomSockets[roomId] = [];
+        console.log("roomId: ", roomId);
+        console.log("roomSockets[roomId]: ", roomSockets[roomId]);
         const participant = room.participants.find((p) => p.userId === socket.userId);
         roomSockets[roomId].push({
           userId: socket.userId,
