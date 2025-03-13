@@ -65,25 +65,24 @@ function initWebSocket(httpServer) {
             if (!isPasswordValid)
               throw new CustomError("JOIN_002", "비번 틀렸대요~");
           }
+          room.participants.push({ userId:socket.userId, role: "Member" }); //없을 때만 추가..
         }
 
         const numSockets = await wsServer.in(roomId).allSockets().size;
-        if (numSockets >= 4)
+        if (numSockets > 4) // 이미 연결 된 후니까 5명 이상이어야 정원 초과..?
           throw new CustomError("JOIN_004", "정원 초과입니다.");
-        
-        room.participants.push({ userId:socket.userId, role: "Member" });
         await room.save();
 
         socket.join(roomId);
-        const curRoom = roomSockets[roomId] || [];
+        if (!roomSockets[roomId])
+          roomSockets[roomId] = [];
         const participant = room.participants.find((p) => p.userId === socket.userId);
-        curRoom.push({
+        roomSockets[roomId].push({
           userId: socket.userId,
           socketId: socket.id,
           joinedAt: new Date(),
           isHost: participant.role === 'Host'
         });
-        roomSockets[roomId] = curRoom;
         socket.currentRoom = roomId;
 
         makeChatUser(socket, roomSockets[roomId]).then((data) => {
