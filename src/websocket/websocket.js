@@ -10,7 +10,7 @@ const roomSockets = {};
 
 function initWebSocket(httpServer) {
   const wsServer = socketIO(httpServer, {
-    path: "/ws",
+    // path: "/ws",
     cors: {
       origin: ["http://localhost:3000"],
       methods: ["GET", "POST"],
