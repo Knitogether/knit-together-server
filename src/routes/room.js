@@ -106,6 +106,7 @@ const Room = require('../../models/Room');
 const bcrypt = require('bcrypt');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
 const { roomSockets } = require('../websocket/websocket');
+const { default: mongoose } = require('mongoose');
 
 router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async (req, res) => {
   console.log('room/create');
@@ -213,40 +214,42 @@ router.patch('/leave/:roomId', authMiddleware, async (req, res) => {
     const userId = req.user.userId;
     const { roomId } = req.params;
     const room = await Room.findById(roomId);
+    if (!room)
+      throw new Error("방이 없습니다람쥐");
+
     const leaver = room.participants.find((p) => p.userId === userId)
-    const updateQuery = { $pull: { participants: { userId: userId } } };
+    if (!leaver)
+      throw new Error("참여 중이지 않은 방입니다.");
+
+    await Room.updateOne(
+      { _id: roomId },
+      { $pull: { participants: { userId: userId } } }
+    );
+    let newHostRoom;
     
     //나가는 사람이 방장일 경우
     if (leaver.role === 'Host') {
       //마지막 1명일 때
-      if (room.participants.length === 1) {
+      if (room.participants.length === 0) {
         await Room.deleteOne({ _id: roomId });
         return res.status(204).json({ message: "Room deleted as last host left" });
       }
 
-      const newHost = await Room.aggregate([
-        { $match: { _id: roomId } },
+      newHostRoom = await Room.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(roomId) } },
         { $unwind: "$participants" },
         { $match: { "participants.userId": { $ne: userId } } },
         { $sort: { "participants.joinedAt": 1 } },
         { $limit: 1 }
       ]);
+      console.log("new host:", newHostRoom);
 
-      if (newHost.length > 0) {
-        updateQuery.$set = { "participants.$[elem].role": "Host" };
-      }
+      await Room.updateOne(
+        { _id: roomId, "participants.userId": newHostRoom[0].participants.userId },
+          { $set: { "participants.$.role": "Host" } }
+      );
     }
 
-    // 방 정보 업데이트
-    await Room.updateOne(
-      { _id: roomId },
-      updateQuery,
-      {
-        arrayFilters: newHost.length > 0
-          ? [{ "elem.userId": newHost[0].participants.userId }]
-          : undefined
-      }
-    );
     res.status(200).json({ message: 'Left the room.'});
 
   } catch (error) {

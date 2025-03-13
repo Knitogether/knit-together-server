@@ -2,6 +2,7 @@ const socketIO = require('socket.io');
 const Room = require('../../models/Room');
 const User = require('../../models/User');
 const jwtService = require('../services/jwtService');
+const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const CustomError = require('./customError');
 require('dotenv').config();
@@ -49,7 +50,10 @@ function initWebSocket(httpServer) {
         if (!room)
           throw new CustomError("ROOM_001", "방이 존재하지 않습니다.");
 
-        isBlockedUser(room, socket.userId);
+        // isBlockedUser(room, socket.userId);
+        const isBlocked = room.blocked.find((p) => p.userId === socket.userId);
+        if (isBlocked)
+          throw new CustomError("JOIN_003", "감히 쫓겨난 녀석이 대문을 두드리느냐");
 
         //이거 제대로 안 되는 듯? 왜 저래..
         const isAlreadyParticipant = room.participants.find(
@@ -111,14 +115,15 @@ function initWebSocket(httpServer) {
         socket.emit('connect-members', members);
         socket.to(roomId).emit('new-user', socket.userId);
         
+        await sendRoomInfo(wsServer, roomId);
+        await sendParticipantsInfo(wsServer, roomId);
+
       } catch (error) {
         console.error("socket join error: ", error.message);
         socket.emit('error', { code: error.code, message: error.message });
         socket.disconnect();
       }
 
-      await sendRoomInfo(wsServer, roomId);
-      await sendParticipantsInfo(wsServer, roomId);
     });
 
     socket.on('send-broadcast', async (data) => {
