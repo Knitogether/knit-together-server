@@ -162,7 +162,7 @@ router.get('/list', async (req, res) => {
           thumbnail: room.thumbnail,
           description: room.description,
           isPrivate: room.isPrivate,
-          knitters: await redisCli.lLen(`room:${room._id.toString()}`), // 현재 소켓 연결 수
+          knitters: await redisCli.LLEN(`room:${room._id.toString()}`), // 현재 소켓 연결 수
         };
       })
     );
