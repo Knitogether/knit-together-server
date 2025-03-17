@@ -259,7 +259,7 @@ function initWebSocket(httpServer) {
           });
         }).then( async () => {
           socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
-          await redisCli.lRem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
+          await redisCli.lrem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
           socket.leave(socket.currentRoom);
         }).catch((error) => {
           throw error;
@@ -351,11 +351,11 @@ async function makeChatUser(socket, room) {
 }
 
 async function addUserToRoom(roomId, userData) {
-  await redisCli.rPush(`room:${roomId}`, JSON.stringify(userData));
+  await redisCli.rpush(`room:${roomId}`, JSON.stringify(userData));
 }
 
 async function getUsersInRoom(roomId) {
-  const users = await redisCli.lRange(`room:${roomId}`, 0, -1);
+  const users = await redisCli.lrange(`room:${roomId}`, 0, -1);
   return users.map((user) => JSON.parse(user)); // 문자열 → 객체 변환
 }
 
