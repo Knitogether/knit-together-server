@@ -5,9 +5,11 @@ const jwtService = require('../services/jwtService');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const CustomError = require('./customError');
+const connectRedis = require('../../config/reids');
 require('dotenv').config();
 
-const roomSockets = {};
+//redis 연결
+const redisCli = connectRedis();
 
 function initWebSocket(httpServer) {
   const wsServer = socketIO(httpServer, {
@@ -78,12 +80,8 @@ function initWebSocket(httpServer) {
         await room.save();
 
         socket.join(roomId);
-        if (!roomSockets[roomId])
-          roomSockets[roomId] = [];
-        console.log("roomId: ", roomId);
-        console.log("roomSockets[roomId]: ", roomSockets[roomId]);
         const participant = room.participants.find((p) => p.userId === socket.userId);
-        roomSockets[roomId].push({
+        await addUserToRoom(roomId, {
           userId: socket.userId,
           socketId: socket.id,
           joinedAt: new Date(),
@@ -91,7 +89,8 @@ function initWebSocket(httpServer) {
         });
         socket.currentRoom = roomId;
 
-        makeChatUser(socket, roomSockets[roomId]).then((data) => {
+        const roomSockets = await getUsersInRoom(roomId);
+        makeChatUser(socket, roomSockets).then((data) => {
           wsServer.to(roomId).emit('welcome', {
             id: uuidv4(),
             sender: data,
@@ -101,7 +100,7 @@ function initWebSocket(httpServer) {
         });
 
         const members = await Promise.all(
-          roomSockets[roomId].map(async (participant) => {
+          roomSockets.map(async (participant) => {
             const user = await User.findById(participant.userId).lean();
             if (!user || user._id === socket.userId) return null;
             return {
@@ -142,7 +141,8 @@ function initWebSocket(httpServer) {
         const recipientId = data.recipientId;
         const content = data.content;
         const message = await makeChatMessage(socket, socket.currentRoom, content);
-        const recipient = roomSockets[socket.currentRoom].find((p) => p.userId === recipientId);
+        const roomSockets = await getUsersInRoom(socket.currentRoom);
+        const recipient = roomSockets.find((p) => p.userId === recipientId);
         socket.to(recipient.socketId).emit('new-message', message);
 
       } catch (error) {
@@ -153,11 +153,12 @@ function initWebSocket(httpServer) {
 
     socket.on('kick', async (targetUserId) => {
       try {
-        const me = roomSockets[socket.currentRoom].find((p) => p.userId === socket.userId);
+        const roomSockets = await getUsersInRoom(socket.currentRoom);
+        const me = roomSockets.find((p) => p.userId === socket.userId);
         if (!me.isHost)
           throw new CustomError("USER_002", "You are not a host.");
         
-        const target = roomSockets[socket.currentRoom].find((p) => p.userId === targetUserId);
+        const target = roomSockets.find((p) => p.userId === targetUserId);
 
         const result = await Room.updateOne(
           { _id: socket.currentRoom },
@@ -179,9 +180,9 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('offer', (offer) => {
+    socket.on('offer', async (offer) => {
       try {
-        const room = roomSockets[socket.currentRoom];
+        const room = await getUsersInRoom(socket.currentRoom);
         if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
     
         for (const user of room) {
@@ -198,9 +199,10 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('answer', (data) => {
+    socket.on('answer', async (data) => {
       try {
-        const target = roomSockets[socket.currentRoom].find((p) => p.userId === data.targetId);
+        const roomSockets = await getUsersInRoom(socket.currentRoom);
+        const target = roomSockets.find((p) => p.userId === data.targetId);
         socket.to(target.socketId).emit('answer', {
           answer: data.answer,
           senderId: socket.userId,
@@ -212,9 +214,10 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('ICE', (data) => {
+    socket.on('ICE', async (data) => {
       try {
-        const target = roomSockets[socket.currentRoom].find((p) => p.userId === data.targetId);
+        const roomSockets = await getUsersInRoom(socket.currentRoom);
+        const target = roomSockets.find((p) => p.userId === data.targetId);
         socket.to(target.socketId).emit('ICE', {
           ice: data.ice,
           senderId: socket.userId,
@@ -228,12 +231,11 @@ function initWebSocket(httpServer) {
 
     socket.on('disconnecting', async () => {
       try {
-        const room = roomSockets[socket.currentRoom];
+        const room = await getUsersInRoom(socket.currentRoom);
         if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
         
         const user = room.find((p) => p.userId === socket.userId);
-        const userIndex = room.findIndex((p) => p.userId === socket.userId);
-        if (!user || userIndex === -1) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
+        if (!user) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
         
         const userModel = await User.findById(socket.userId);
         if (!userModel) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
@@ -245,7 +247,7 @@ function initWebSocket(httpServer) {
         userModel.exp += earnExp;
         if (userModel.exp >= 100) {
           userModel.level += 1;
-          userModel.exp = user.exp + Number(earnExp) - 100;
+          userModel.exp -= 100;
         }
         await userModel.save();
         
@@ -255,9 +257,9 @@ function initWebSocket(httpServer) {
             id: uuidv4(),
             sender: data,
           });
-        }).then(() => {
+        }).then( async () => {
           socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
-          room.splice(userIndex, 1);
+          await redisCli.lRem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
           socket.leave(socket.currentRoom);
         }).catch((error) => {
           throw error;
@@ -275,12 +277,11 @@ function initWebSocket(httpServer) {
     });
   });
 
-  return wsServer;
 }
 
 async function sendRoomInfo(wsServer, roomId) {
   try {
-    const room = roomSockets[roomId];
+    const room = await getUsersInRoom(roomId);
     if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
     const roomModel = await Room.findById(roomId).lean();
 
@@ -300,7 +301,7 @@ async function sendRoomInfo(wsServer, roomId) {
 
 async function sendParticipantsInfo(wsServer, roomId) {
   try {
-    const room = roomSockets[roomId];
+    const room = await getUsersInRoom(roomId);
     console.log("room: ", room);
 
     const members = await Promise.all(
@@ -349,6 +350,15 @@ async function makeChatUser(socket, room) {
   return chatUser;
 }
 
+async function addUserToRoom(roomId, userData) {
+  await redisCli.rPush(`room:${roomId}`, JSON.stringify(userData));
+}
+
+async function getUsersInRoom(roomId) {
+  const users = await redisCli.lRange(`room:${roomId}`, 0, -1);
+  return users.map((user) => JSON.parse(user)); // 문자열 → 객체 변환
+}
+
 async function makeChatMessage(socket, roomId, content) {
   const user = await User.findById(socket.userId);
   if (!user) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
@@ -356,7 +366,8 @@ async function makeChatMessage(socket, roomId, content) {
   const room = await Room.findById(roomId);
   if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
   
-  const me = roomSockets[roomId].find((p) => p.userId === socket.userId);
+  const roomSockets = await getUsersInRoom(roomId);
+  const me = roomSockets.find((p) => p.userId === socket.userId);
 
   const chatUser = {
     id: user._id,
@@ -375,10 +386,11 @@ async function makeChatMessage(socket, roomId, content) {
   return message;
 }
 
-async function isBlockedUser(room, userId) {
-  const isBlocked = room.blocked.find((p) => p.userId === userId);
-  if (isBlocked)
-    throw new CustomError("JOIN_003", "감히 쫓겨난 녀석이 대문을 두드리느냐");
-}
+// join 내부에서 처리
+// async function isBlockedUser(room, userId) {
+//   const isBlocked = room.blocked.find((p) => p.userId === userId);
+//   if (isBlocked)
+//     throw new CustomError("JOIN_003", "감히 쫓겨난 녀석이 대문을 두드리느냐");
+// }
 
-module.exports = { initWebSocket, roomSockets };
+module.exports = { initWebSocket, redisCli, getUsersInRoom };

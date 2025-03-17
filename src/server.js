@@ -4,7 +4,6 @@ const { initWebSocket } = require('./websocket/websocket');
 
 const app = express();
 const httpServer = http.createServer(app);
-const wsServer = initWebSocket(httpServer);
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
@@ -21,6 +20,8 @@ app.use(express.json());
 
 //MongoDB
 connectDB();
+//websocket
+initWebSocket(httpServer);
 
 // CORS 설정
 app.use(cors({

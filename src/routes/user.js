@@ -87,7 +87,7 @@ const User = require('../../models/User');
 const Room = require('../../models/Room');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
-const { roomSockets } = require('../websocket/websocket');
+const { redisCli } = require('../websocket/websocket');
 
 router.get('/me', authMiddleware, async (req, res) => {
   console.log('user/me');
@@ -138,10 +138,14 @@ router.get('/wip', authMiddleware, async (req, res) => {
         }
       }
     ]);
-    const roomsWithSockets = userRooms.map(room => ({
-      ...room,
-      knitters: roomSockets[room.id]?.length || 0, // 현재 접속 중인 인원 추가
-    }));
+    const roomsWithSockets = await Promise.all(
+      userRooms.map(async (room) => {
+        return {
+          ...room,
+          knitters: await redisCli.lLen(`room:${room.id}`),
+        };
+      })
+    );
 
     res.status(200).json({ userRooms: roomsWithSockets });
   } catch (error) {
