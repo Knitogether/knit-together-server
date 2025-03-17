@@ -12,6 +12,7 @@ const connectRedis = async () => {
     client.on("error", (err) => console.error("❌ Redis Error:", err));
     
     client.connect();
+    return client;
 };
 
 module.exports = connectRedis;
