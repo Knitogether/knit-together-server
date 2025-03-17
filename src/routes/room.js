@@ -156,13 +156,19 @@ router.get('/list', async (req, res) => {
     const rooms = await Room.find();
     const roomInfo = await Promise.all(
       rooms.map(async (room) => {
+        const length = await new Promise((resolve, reject) => {
+          redisCli.LLEN(`room:${room._id.toString()}`, (err, length) => {
+            if (err) reject(err);
+            resolve(length);  // Redis의 연결된 소켓 수를 반환
+          });
+        });
         return {
           id: room._id.toString(),
           title: room.title,
           thumbnail: room.thumbnail,
           description: room.description,
           isPrivate: room.isPrivate,
-          knitters: (await redisCli).LLEN(`room:${room._id.toString()}`), // 현재 소켓 연결 수
+          knitters: length, // 현재 소켓 연결 수
         };
       })
     );
