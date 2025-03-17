@@ -156,8 +156,8 @@ router.get('/list', async (req, res) => {
     const rooms = await Room.find();
     const roomInfo = await Promise.all(
       rooms.map(async (room) => {
-        const length = await new Promise((resolve, reject) => {
-          redisCli.LLEN(`room:${room._id.toString()}`, (err, length) => {
+        const length = await new Promise( async (resolve, reject) => {
+          (await redisCli).LLEN(`room:${room._id.toString()}`, (err, length) => {
             if (err) reject(err);
             resolve(length);  // Redis의 연결된 소켓 수를 반환
           });
