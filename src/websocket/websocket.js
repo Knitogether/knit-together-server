@@ -237,6 +237,8 @@ function initWebSocket(httpServer) {
         const room = await getUsersInRoom(socket.currentRoom);
         if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
         
+        console.log("disconnecting room: ", room);
+        console.log("socket.userId", socket.userId);
         const user = room.find((p) => p.userId === socket.userId);
         if (!user) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
         
@@ -255,18 +257,18 @@ function initWebSocket(httpServer) {
         await userModel.save();
         
         
-        makeChatUser(socket, room).then((data) => {
+        await makeChatUser(socket, room).then((data) => {
           wsServer.to(socket.currentRoom).emit('bye', { 
             id: uuidv4(),
             sender: data,
           });
         }).then( async () => {
           socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
-          await redis.lrem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
-          socket.leave(socket.currentRoom);
         }).catch((error) => {
           throw error;
         });
+        await redis.lrem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
+        socket.leave(socket.currentRoom);
         
       } catch (error) {
         console.error("disconnecting error", error.message);
