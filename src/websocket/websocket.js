@@ -246,7 +246,7 @@ function initWebSocket(httpServer) {
         if (!userModel) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
         
         console.log("user.joinedAt:", user.joinedAt);
-        const inTime = (new Date() - user.joinedAt)/1000;
+        const inTime = (new Date() - new Date(user.joinedAt))/1000;
         console.log("inTime:", inTime);
         console.log("userModel.level:", userModel.level);
         console.log("Math.pow:", Math.pow(3*3600, userModel.level+1) * 100);
