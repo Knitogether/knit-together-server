@@ -237,23 +237,14 @@ function initWebSocket(httpServer) {
         const room = await getUsersInRoom(socket.currentRoom);
         if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
         
-        console.log("disconnecting room: ", room);
-        console.log("socket.userId", socket.userId);
         const user = room.find((p) => p.userId === socket.userId);
         if (!user) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
         
         const userModel = await User.findById(socket.userId);
         if (!userModel) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
         
-        console.log("user.joinedAt:", user.joinedAt);
         const inTime = (new Date() - new Date(user.joinedAt))/1000;
-        console.log("inTime:", inTime);
-        console.log("userModel.level:", userModel.level);
-        console.log("Math.pow:", Math.pow(3*3600, userModel.level+1) * 100);
         const earnExp = Number((inTime / Math.pow(3*3600, userModel.level+1) * 100).toFixed(2));
-        console.log("earnExp: ", earnExp);
-        console.log("userModel.exp:", userModel.exp);
-
         userModel.exp += earnExp;
         if (userModel.exp >= 100) {
           userModel.level += 1;
@@ -272,7 +263,6 @@ function initWebSocket(httpServer) {
         }).catch((error) => {
           throw error;
         });
-        await redis.lrem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
         socket.leave(socket.currentRoom);
         
       } catch (error) {
@@ -280,8 +270,14 @@ function initWebSocket(httpServer) {
         socket.emit('error', { code: error.code, message: error.message });
       }
     });
-
+    
     socket.on('disconnect', async () => {
+      const room = await getUsersInRoom(socket.currentRoom);
+      if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
+      const user = room.find((p) => p.userId === socket.userId);
+      if (!user) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
+      
+      await redis.lrem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
       await sendParticipantsInfo(wsServer, socket.currentRoom);
       console.log('WebSocket connection closed.');
     });
