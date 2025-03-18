@@ -5,7 +5,6 @@ const jwtService = require('../services/jwtService');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const CustomError = require('./customError');
-const connectRedis = require('../../config/reids');
 require('dotenv').config();
 
 //redis 연결
