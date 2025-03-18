@@ -87,7 +87,7 @@ const User = require('../../models/User');
 const Room = require('../../models/Room');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
-const { redisCli } = require('../websocket/websocket');
+const { redis } = require('../websocket/websocket');
 
 router.get('/me', authMiddleware, async (req, res) => {
   console.log('user/me');
@@ -142,7 +142,7 @@ router.get('/wip', authMiddleware, async (req, res) => {
       userRooms.map(async (room) => {
         return {
           ...room,
-          knitters: (await redisCli).LLEN(`room:${room.id}`),
+          knitters: await redis.lLen(`room:${room.id}`),
         };
       })
     );

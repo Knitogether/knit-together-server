@@ -9,7 +9,8 @@ const connectRedis = require('../../config/reids');
 require('dotenv').config();
 
 //redis 연결
-const redisCli = connectRedis();
+const Redis = require("ioredis");
+const redis = new Redis();
 
 function initWebSocket(httpServer) {
   const wsServer = socketIO(httpServer, {
@@ -259,7 +260,7 @@ function initWebSocket(httpServer) {
           });
         }).then( async () => {
           socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
-          (await redisCli).LREM(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
+          await redis.lRem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
           socket.leave(socket.currentRoom);
         }).catch((error) => {
           throw error;
@@ -351,11 +352,11 @@ async function makeChatUser(socket, room) {
 }
 
 async function addUserToRoom(roomId, userData) {
-  (await redisCli).RPUSH(`room:${roomId}`, JSON.stringify(userData));
+  await redis.lPush(`room:${roomId}`, JSON.stringify(userData));
 }
 
 async function getUsersInRoom(roomId) {
-  const users = (await redisCli).LRANGE(`room:${roomId}`, 0, -1);
+  const users = await redis.lRange(`room:${roomId}`, 0, -1);
   return users.map((user) => JSON.parse(user)); // 문자열 → 객체 변환
 }
 
@@ -393,4 +394,4 @@ async function makeChatMessage(socket, roomId, content) {
 //     throw new CustomError("JOIN_003", "감히 쫓겨난 녀석이 대문을 두드리느냐");
 // }
 
-module.exports = { initWebSocket, redisCli, getUsersInRoom };
+module.exports = { initWebSocket, redis, getUsersInRoom };

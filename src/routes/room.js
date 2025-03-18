@@ -105,7 +105,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const Room = require('../../models/Room');
 const bcrypt = require('bcrypt');
 const { uploadHandler, uploadToGCS } = require('../../config/storage');
-const { redisCli } = require('../websocket/websocket');
+const { redis } = require('../websocket/websocket');
 const { default: mongoose } = require('mongoose');
 
 router.post('/create', authMiddleware, uploadHandler.single('thumbnail'), async (req, res) => {
@@ -156,19 +156,13 @@ router.get('/list', async (req, res) => {
     const rooms = await Room.find();
     const roomInfo = await Promise.all(
       rooms.map(async (room) => {
-        const length = await new Promise( async (resolve, reject) => {
-          (await redisCli).LLEN(`room:${room._id.toString()}`, (err, length) => {
-            if (err) reject(err);
-            resolve(length);  // Redis의 연결된 소켓 수를 반환
-          });
-        });
         return {
           id: room._id.toString(),
           title: room.title,
           thumbnail: room.thumbnail,
           description: room.description,
           isPrivate: room.isPrivate,
-          knitters: length, // 현재 소켓 연결 수
+          knitters: await redis.lLen(`room:${room._id.toString()}`), // 현재 소켓 연결 수
         };
       })
     );
