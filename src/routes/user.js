@@ -142,7 +142,7 @@ router.get('/wip', authMiddleware, async (req, res) => {
       userRooms.map(async (room) => {
         return {
           ...room,
-          knitters: await redis.lLen(`room:${room.id}`),
+          knitters: await redis.llen(`room:${room.id}`),
         };
       })
     );
