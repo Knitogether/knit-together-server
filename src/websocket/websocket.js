@@ -47,7 +47,7 @@ function initWebSocket(httpServer) {
       const password = data.password;
 
       try {
-        const room = await Room.findById(roomId);
+        const room = await Room.findById(roomId).select("+password");
 
         if (!room)
           throw new CustomError("ROOM_001", "방이 존재하지 않습니다.");
