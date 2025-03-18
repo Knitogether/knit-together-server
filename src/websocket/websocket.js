@@ -245,9 +245,14 @@ function initWebSocket(httpServer) {
         const userModel = await User.findById(socket.userId);
         if (!userModel) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
         
+        console.log("user.joinedAt:", user.joinedAt);
         const inTime = (new Date() - user.joinedAt)/1000;
+        console.log("inTime:", inTime);
+        console.log("userModel.level:", userModel.level);
+        console.log("Math.pow:", Math.pow(3*3600, userModel.level+1) * 100);
         const earnExp = Number((inTime / Math.pow(3*3600, userModel.level+1) * 100).toFixed(2));
         console.log("earnExp: ", earnExp);
+        console.log("userModel.exp:", userModel.exp);
 
         userModel.exp += earnExp;
         if (userModel.exp >= 100) {
