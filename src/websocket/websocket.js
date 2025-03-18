@@ -104,7 +104,7 @@ function initWebSocket(httpServer) {
         const members = await Promise.all(
           roomSockets.map(async (participant) => {
             const user = await User.findById(participant.userId).lean();
-            if (!user || user._id === socket.userId) return null;
+            if (!user || user._id.toString() === socket.userId) return null;
             return {
               id: user._id.toString(),
               username: user.name,
