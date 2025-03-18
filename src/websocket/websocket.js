@@ -127,7 +127,7 @@ function initWebSocket(httpServer) {
 
     socket.on('send-broadcast', async (data) => {
       try {
-        const message = await makeChatMessage(socket, socket.currentRoom, data.content);
+        const message = await makeChatMessage(socket, socket.currentRoom, data.content, false);
         wsServer.to(socket.currentRoom).emit('new-message', message);
 
       } catch (error) {
@@ -140,10 +140,11 @@ function initWebSocket(httpServer) {
       try {
         const recipientId = data.recipientId;
         const content = data.content;
-        const message = await makeChatMessage(socket, socket.currentRoom, content);
+        const message = await makeChatMessage(socket, socket.currentRoom, content, true);
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const recipient = roomSockets.find((p) => p.userId === recipientId);
         socket.to(recipient.socketId).emit('new-message', message);
+        socket.emit('new-message', message);
 
       } catch (error) {
         console.error("send-broadcast error", error.message);
@@ -359,7 +360,7 @@ async function getUsersInRoom(roomId) {
   return users.map((user) => JSON.parse(user)); // 문자열 → 객체 변환
 }
 
-async function makeChatMessage(socket, roomId, content) {
+async function makeChatMessage(socket, roomId, content, isPrivate) {
   const user = await User.findById(socket.userId);
   if (!user) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
 
@@ -379,7 +380,7 @@ async function makeChatMessage(socket, roomId, content) {
     id: uuidv4(),
     sender: chatUser,
     content,
-    isPrivate: room.isPrivate,
+    isPrivate,
     timestamp: new Date(),
   }
   
