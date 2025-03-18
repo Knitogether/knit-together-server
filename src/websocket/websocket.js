@@ -67,6 +67,8 @@ function initWebSocket(httpServer) {
             if (password === undefined)
               throw new CustomError("JOIN_001", "비밀번호를 입력하세요.");
 
+            console.log("password: ", password);
+            console.log("room..password: ", room.password);
             const isPasswordValid = await bcrypt.compare(password, room.password);
             if (!isPasswordValid)
               throw new CustomError("JOIN_002", "비번 틀렸대요~");
