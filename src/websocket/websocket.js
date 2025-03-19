@@ -142,7 +142,7 @@ function initWebSocket(httpServer) {
       try {
         const recipientId = data.recipientId;
         const content = data.content;
-        const message = await makeDM(socket, socket.currentRoom, content, true);
+        const message = await makeDM(socket, socket.currentRoom, content, recipientId);
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const recipient = roomSockets.find((p) => p.userId === recipientId);
         socket.to(recipient.socketId).emit('new-message', message);
