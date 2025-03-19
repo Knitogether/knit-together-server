@@ -129,7 +129,7 @@ function initWebSocket(httpServer) {
 
     socket.on('send-broadcast', async (data) => {
       try {
-        const message = await makeChatMessage(socket, socket.currentRoom, data.content, false);
+        const message = await makePublicMessage(socket, socket.currentRoom, data.content);
         wsServer.to(socket.currentRoom).emit('new-message', message);
 
       } catch (error) {
@@ -142,7 +142,7 @@ function initWebSocket(httpServer) {
       try {
         const recipientId = data.recipientId;
         const content = data.content;
-        const message = await makeChatMessage(socket, socket.currentRoom, content, true);
+        const message = await makeDM(socket, socket.currentRoom, content, true);
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const recipient = roomSockets.find((p) => p.userId === recipientId);
         socket.to(recipient.socketId).emit('new-message', message);
@@ -365,13 +365,10 @@ async function getUsersInRoom(roomId) {
   return users.map((user) => JSON.parse(user)); // 문자열 → 객체 변환
 }
 
-async function makeChatMessage(socket, roomId, content, isPrivate) {
+async function makePublicMessage(socket, roomId, content) {
   const user = await User.findById(socket.userId);
   if (!user) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
 
-  const room = await Room.findById(roomId);
-  if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
-  
   const roomSockets = await getUsersInRoom(roomId);
   const me = roomSockets.find((p) => p.userId === socket.userId);
 
@@ -385,7 +382,35 @@ async function makeChatMessage(socket, roomId, content, isPrivate) {
     id: uuidv4(),
     sender: chatUser,
     content,
-    isPrivate,
+    isPrivate: false,
+    timestamp: new Date(),
+  }
+  
+  return message;
+}
+
+async function makeDM(socket, roomId, content, recipientId) {
+  const user = await User.findById(socket.userId);
+  if (!user) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
+
+  const recipient = await User.findById(recipientId);
+  if (!recipient) throw new CustomError("USER_001", "없는 유저(귀신)에게는 디엠을 보낼 수 없어요.");
+
+  const roomSockets = await getUsersInRoom(roomId);
+  const me = roomSockets.find((p) => p.userId === socket.userId);
+
+  const chatUser = {
+    id: user._id,
+    username: user.name,
+    isHost: me.isHost,
+  }
+
+  const message = {
+    id: uuidv4(),
+    sender: chatUser,
+    recipientName: recipient.name,
+    content,
+    isPrivate: true,
     timestamp: new Date(),
   }
   
