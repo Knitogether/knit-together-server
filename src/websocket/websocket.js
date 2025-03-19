@@ -15,7 +15,7 @@ function initWebSocket(httpServer) {
   const wsServer = socketIO(httpServer, {
     // path: "/ws",
     cors: {
-      origin: ["http://localhost:3000"],
+      origin: ["http://localhost:3000", "https://673f-14-4-25-153.ngrok-free.app"],
       methods: ["GET", "POST"],
       transports: ['websocket', 'polling'],
       credentials: true

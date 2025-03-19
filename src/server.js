@@ -25,7 +25,7 @@ initWebSocket(httpServer);
 
 // CORS 설정
 app.use(cors({
-  origin: 'http://localhost:3000', // 허용할 출처 (프론트엔드 URL)
+  origin: ['http://localhost:3000', 'https://673f-14-4-25-153.ngrok-free.app'], // 허용할 출처 (프론트엔드 URL)
   methods: 'GET,POST,PUT,DELETE,PATCH', // 허용할 HTTP 메서드
   credentials: true               // 쿠키 및 인증 정보 허용
 }));
