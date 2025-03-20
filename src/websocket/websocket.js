@@ -77,7 +77,7 @@ function initWebSocket(httpServer) {
         }
 
         const numSockets = await wsServer.in(roomId).allSockets().size;
-        if (numSockets > 4) // 이미 연결 된 후니까 5명 이상이어야 정원 초과..?
+        if (numSockets >= 4) // 이미 연결 된 후니까 5명 이상이어야 정원 초과..?
           throw new CustomError("JOIN_004", "정원 초과입니다.");
         await room.save();
 
