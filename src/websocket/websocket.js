@@ -76,8 +76,8 @@ function initWebSocket(httpServer) {
           room.participants.push({ userId:socket.userId, role: "Member" }); //없을 때만 추가..
         }
 
-        const numSockets = await wsServer.in(roomId).allSockets().size;
-        if (numSockets >= 4) // 이미 연결 된 후니까 5명 이상이어야 정원 초과..?
+        const numSockets = await redis.llen(`room:${roomId}`);
+        if (numSockets >= 4)
           throw new CustomError("JOIN_004", "정원 초과입니다.");
         await room.save();
 
