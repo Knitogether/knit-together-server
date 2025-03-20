@@ -183,18 +183,15 @@ function initWebSocket(httpServer) {
       }
     });
 
-    socket.on('offer', async (offer) => {
+    socket.on('offer', async (data) => {
       try {
         const roomSockets = await getUsersInRoom(socket.currentRoom);
-        
-        roomSockets.map((user) => {
-          if (user.userId !== socket.userId) {
-            socket.to(user.socketId).emit('offer', {
-              offer: offer,
-              senderId: socket.userId,
-            });
-          }
-        })
+        const target = roomSockets.find((p) => p.userId === data.targetId);
+        socket.to(target.socketId).emit('offer', {
+          offer: data.offer,
+          senderId: socket.userId,
+        });
+
       } catch (error) {
         console.error("offer error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
