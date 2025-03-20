@@ -185,17 +185,16 @@ function initWebSocket(httpServer) {
 
     socket.on('offer', async (offer) => {
       try {
-        const room = await getUsersInRoom(socket.currentRoom);
-        if (!room) throw new CustomError("ROOM_001", "웁스! 방이 없네요.");
-    
-        for (const user of room) {
-          if (user.userId === socket.userId) continue;    
-          socket.to(user.socketId).emit('offer', {
-            offer: offer,
-            senderId: socket.userId,
-          });
-        }
-
+        const roomSockets = await getUsersInRoom(socket.currentRoom);
+        
+        roomSockets.map((user) => {
+          if (user.userId !== socket.userId) {
+            socket.to(user.socketId).emit('offer', {
+              offer: offer,
+              senderId: socket.userId,
+            });
+          }
+        })
       } catch (error) {
         console.error("offer error", error.message);
         socket.emit('error', { code: error.code, message: error.message });
