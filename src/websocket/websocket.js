@@ -1,11 +1,11 @@
-const socketIO = require('socket.io');
-const Room = require('../../models/Room');
-const User = require('../../models/User');
-const jwtService = require('../services/jwtService');
-const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
-const CustomError = require('./customError');
-require('dotenv').config();
+const socketIO = require("socket.io");
+const Room = require("../../models/Room");
+const User = require("../../models/User");
+const jwtService = require("../services/jwtService");
+const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
+const CustomError = require("./customError");
+require("dotenv").config();
 
 //redis 연결
 const Redis = require("ioredis");
@@ -15,11 +15,11 @@ function initWebSocket(httpServer) {
   const wsServer = socketIO(httpServer, {
     // path: "/ws",
     cors: {
-      origin: ["http://localhost:3000", "https://673f-14-4-25-153.ngrok-free.app"],
+      origin: ["https://knittogether.online"],
       methods: ["GET", "POST"],
-      transports: ['websocket', 'polling'],
-      credentials: true
-    }
+      transports: ["websocket", "polling"],
+      credentials: true,
+    },
   });
 
   wsServer.use((socket, next) => {
@@ -30,32 +30,33 @@ function initWebSocket(httpServer) {
       }
       const decoded = jwtService.verifyToken(token, process.env.JWT_SECRET);
       socket.userId = decoded.userId;
-      if (socket.currentRoom)
-        throw new Error("Already joined different room");
+      if (socket.currentRoom) throw new Error("Already joined different room");
       next();
     } catch (error) {
       console.error("Middleware error:", error.message);
       next(error);
     }
   });
-  
-  wsServer.on('connection', (socket) => {
-    console.log('WebSocket connection established.');
 
-    socket.on('join', async (data) => {
+  wsServer.on("connection", (socket) => {
+    console.log("WebSocket connection established.");
+
+    socket.on("join", async (data) => {
       const roomId = data.roomId;
       const password = data.password;
 
       try {
         const room = await Room.findById(roomId).select("+password");
 
-        if (!room)
-          throw new CustomError("ROOM_001", "방이 존재하지 않습니다.");
+        if (!room) throw new CustomError("ROOM_001", "방이 존재하지 않습니다.");
 
         // isBlockedUser(room, socket.userId);
         const isBlocked = room.blocked.find((p) => p.userId === socket.userId);
         if (isBlocked)
-          throw new CustomError("JOIN_003", "감히 쫓겨난 녀석이 대문을 두드리느냐");
+          throw new CustomError(
+            "JOIN_003",
+            "감히 쫓겨난 녀석이 대문을 두드리느냐"
+          );
 
         //이거 제대로 안 되는 듯? 왜 저래..
         const isAlreadyParticipant = room.participants.find(
@@ -69,11 +70,14 @@ function initWebSocket(httpServer) {
 
             console.log("password: ", password);
             console.log("room..password: ", room.password);
-            const isPasswordValid = await bcrypt.compare(password, room.password);
+            const isPasswordValid = await bcrypt.compare(
+              password,
+              room.password
+            );
             if (!isPasswordValid)
               throw new CustomError("JOIN_002", "비번 틀렸대요~");
           }
-          room.participants.push({ userId:socket.userId, role: "Member" }); //없을 때만 추가..
+          room.participants.push({ userId: socket.userId, role: "Member" }); //없을 때만 추가..
         }
 
         const numSockets = await redis.llen(`room:${roomId}`);
@@ -82,203 +86,218 @@ function initWebSocket(httpServer) {
         await room.save();
 
         socket.join(roomId);
-        const participant = room.participants.find((p) => p.userId === socket.userId);
+        const participant = room.participants.find(
+          (p) => p.userId === socket.userId
+        );
         await addUserToRoom(roomId, {
           userId: socket.userId,
           socketId: socket.id,
           joinedAt: new Date(),
-          isHost: participant.role === 'Host'
+          isHost: participant.role === "Host",
         });
         socket.currentRoom = roomId;
 
         const roomSockets = await getUsersInRoom(roomId);
-        makeChatUser(socket, roomSockets).then((data) => {
-          wsServer.to(roomId).emit('welcome', {
-            id: uuidv4(),
-            sender: data,
-          });
-        }).catch((error) => {
-          throw error;
-        });
-
-        const members = (await Promise.all(
-          roomSockets.map(async (participant) => {
-            const user = await User.findById(participant.userId).lean();
-            if (!user || user._id.toString() === socket.userId) return ;
-            return {
-              id: user._id.toString(),
-              username: user.name,
-              profileImage: user.profileImage,
-              isHost: participant.isHost,
-            };
+        makeChatUser(socket, roomSockets)
+          .then((data) => {
+            wsServer.to(roomId).emit("welcome", {
+              id: uuidv4(),
+              sender: data,
+            });
           })
-        )).filter(Boolean);
-        socket.emit('connect-members', members);
-        socket.to(roomId).emit('new-user', socket.userId);
-        
+          .catch((error) => {
+            throw error;
+          });
+
+        const members = (
+          await Promise.all(
+            roomSockets.map(async (participant) => {
+              const user = await User.findById(participant.userId).lean();
+              if (!user || user._id.toString() === socket.userId) return;
+              return {
+                id: user._id.toString(),
+                username: user.name,
+                profileImage: user.profileImage,
+                isHost: participant.isHost,
+              };
+            })
+          )
+        ).filter(Boolean);
+        socket.emit("connect-members", members);
+        socket.to(roomId).emit("new-user", socket.userId);
+
         await sendRoomInfo(wsServer, roomId);
         await sendParticipantsInfo(wsServer, roomId);
-
       } catch (error) {
         console.error("socket join error: ", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
         socket.disconnect();
       }
-
     });
 
-    socket.on('send-broadcast', async (data) => {
+    socket.on("send-broadcast", async (data) => {
       try {
-        const message = await makePublicMessage(socket, socket.currentRoom, data.content);
-        wsServer.to(socket.currentRoom).emit('new-message', message);
-
+        const message = await makePublicMessage(
+          socket,
+          socket.currentRoom,
+          data.content
+        );
+        wsServer.to(socket.currentRoom).emit("new-message", message);
       } catch (error) {
         console.error("send-broadcast error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
 
-    socket.on('send-dm', async (data) => {
+    socket.on("send-dm", async (data) => {
       try {
         const recipientId = data.recipientId;
         const content = data.content;
-        const message = await makeDM(socket, socket.currentRoom, content, recipientId);
+        const message = await makeDM(
+          socket,
+          socket.currentRoom,
+          content,
+          recipientId
+        );
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const recipient = roomSockets.find((p) => p.userId === recipientId);
-        socket.to(recipient.socketId).emit('new-message', message);
-        socket.emit('new-message', message);
-
+        socket.to(recipient.socketId).emit("new-message", message);
+        socket.emit("new-message", message);
       } catch (error) {
         console.error("send-broadcast error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
 
-    socket.on('kick', async (targetUserId) => {
+    socket.on("kick", async (targetUserId) => {
       try {
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const me = roomSockets.find((p) => p.userId === socket.userId);
         if (!me.isHost)
           throw new CustomError("USER_002", "You are not a host.");
-        
+
         const target = roomSockets.find((p) => p.userId === targetUserId);
 
         const result = await Room.updateOne(
           { _id: socket.currentRoom },
           {
             $push: { blocked: { userId: targetUserId } }, // 차단 리스트 추가
-            $pull: { participants: { userId: targetUserId } } // 참가자 목록에서 제거
+            $pull: { participants: { userId: targetUserId } }, // 참가자 목록에서 제거
           }
         );
         if (result.matchedCount === 0)
           throw new CustomError("ROOM_001", "해당 방을 찾을 수 없습니다.");
         if (result.modifiedCount === 0)
-          throw new CustomError("USER_003", "해당 유저를가 이미 차단되었거나 참가자 목록에 없습니다."); 
-        
-        socket.to(target.socketId).emit('kicked');
+          throw new CustomError(
+            "USER_003",
+            "해당 유저를가 이미 차단되었거나 참가자 목록에 없습니다."
+          );
 
+        socket.to(target.socketId).emit("kicked");
       } catch (error) {
         console.error("kick error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
 
-    socket.on('offer', async (data) => {
+    socket.on("offer", async (data) => {
       try {
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const target = roomSockets.find((p) => p.userId === data.targetId);
-        socket.to(target.socketId).emit('offer', {
+        socket.to(target.socketId).emit("offer", {
           offer: data.offer,
           senderId: socket.userId,
         });
-
       } catch (error) {
         console.error("offer error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
 
-    socket.on('answer', async (data) => {
+    socket.on("answer", async (data) => {
       try {
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const target = roomSockets.find((p) => p.userId === data.targetId);
-        socket.to(target.socketId).emit('answer', {
+        socket.to(target.socketId).emit("answer", {
           answer: data.answer,
           senderId: socket.userId,
         });
-
       } catch (error) {
         console.error("answer error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
 
-    socket.on('ICE', async (data) => {
+    socket.on("ICE", async (data) => {
       try {
         const roomSockets = await getUsersInRoom(socket.currentRoom);
         const target = roomSockets.find((p) => p.userId === data.targetId);
-        socket.to(target.socketId).emit('ICE', {
+        socket.to(target.socketId).emit("ICE", {
           ice: data.ice,
           senderId: socket.userId,
         });
-
       } catch (error) {
         console.error("ICE error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
 
-    socket.on('disconnecting', async () => {
+    socket.on("disconnecting", async () => {
       try {
         const room = await getUsersInRoom(socket.currentRoom);
         if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
-        
+
         const user = room.find((p) => p.userId === socket.userId);
         if (!user) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
-        
+
         const userModel = await User.findById(socket.userId);
-        if (!userModel) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
-        
-        const inTime = (new Date() - new Date(user.joinedAt))/1000;
-        const earnExp = Number((inTime / Math.pow(3*3600, userModel.level+1) * 100).toFixed(2));
+        if (!userModel)
+          throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
+
+        const inTime = (new Date() - new Date(user.joinedAt)) / 1000;
+        const earnExp = Number(
+          ((inTime / Math.pow(3 * 3600, userModel.level + 1)) * 100).toFixed(2)
+        );
         userModel.exp += earnExp;
         if (userModel.exp >= 100) {
           userModel.level += 1;
           userModel.exp -= 100;
         }
         await userModel.save();
-        
-        
-        await makeChatUser(socket, room).then((data) => {
-          wsServer.to(socket.currentRoom).emit('bye', { 
-            id: uuidv4(),
-            sender: data,
+
+        await makeChatUser(socket, room)
+          .then((data) => {
+            wsServer.to(socket.currentRoom).emit("bye", {
+              id: uuidv4(),
+              sender: data,
+            });
+          })
+          .then(async () => {
+            socket
+              .to(socket.currentRoom)
+              .emit("disconnect-member", socket.userId);
+          })
+          .catch((error) => {
+            throw error;
           });
-        }).then( async () => {
-          socket.to(socket.currentRoom).emit('disconnect-member', socket.userId);
-        }).catch((error) => {
-          throw error;
-        });
         socket.leave(socket.currentRoom);
-        
       } catch (error) {
         console.error("disconnecting error", error.message);
-        socket.emit('error', { code: error.code, message: error.message });
+        socket.emit("error", { code: error.code, message: error.message });
       }
     });
-    
-    socket.on('disconnect', async () => {
+
+    socket.on("disconnect", async () => {
       const room = await getUsersInRoom(socket.currentRoom);
       if (!room) throw new CustomError("ROOM_001", "방이 없습니다.");
       const user = room.find((p) => p.userId === socket.userId);
       if (!user) throw new CustomError("USER_003", "참여자 목록에 없습니다.");
-      
+
       await redis.lrem(`room:${socket.currentRoom}`, 1, JSON.stringify(user));
       await sendParticipantsInfo(wsServer, socket.currentRoom);
-      console.log('WebSocket connection closed.');
+      console.log("WebSocket connection closed.");
     });
   });
-
 }
 
 async function sendRoomInfo(wsServer, roomId) {
@@ -291,15 +310,19 @@ async function sendRoomInfo(wsServer, roomId) {
       roomId: roomModel._id.toString(),
       title: roomModel.title,
       description: roomModel.description,
-    }
-    wsServer.to(roomId).emit('room-info', roomInfo);
-
+    };
+    wsServer.to(roomId).emit("room-info", roomInfo);
   } catch (error) {
-    console.error(`Failed to send room info for room ${roomId}:`, error.message);
-    wsServer.to(roomId).emit('error', { code: error.code, message: error.message });
+    console.error(
+      `Failed to send room info for room ${roomId}:`,
+      error.message
+    );
+    wsServer
+      .to(roomId)
+      .emit("error", { code: error.code, message: error.message });
     // if (error.code === "ROOM_001") socket.disconnect();
   }
-};
+}
 
 async function sendParticipantsInfo(wsServer, roomId) {
   try {
@@ -326,17 +349,21 @@ async function sendParticipantsInfo(wsServer, roomId) {
       const others = members.filter((member) => member.id !== user.userId);
       console.log("me: ", me);
       console.log("others: ", others);
-      wsServer.to(user.socketId).emit('participants-info', {
+      wsServer.to(user.socketId).emit("participants-info", {
         user: me,
         members: others,
       });
     }
-
-  } catch(error) {
-    console.error(`Failed to send participants info for room ${roomId}:`, error.message);
-    wsServer.to(roomId).emit('error', { code: error.code, message: error.message });
+  } catch (error) {
+    console.error(
+      `Failed to send participants info for room ${roomId}:`,
+      error.message
+    );
+    wsServer
+      .to(roomId)
+      .emit("error", { code: error.code, message: error.message });
   }
-};
+}
 
 async function makeChatUser(socket, room) {
   const user = await User.findById(socket.userId);
@@ -348,7 +375,7 @@ async function makeChatUser(socket, room) {
     id: user._id,
     username: user.name,
     isHost: me.isHost,
-  }
+  };
   return chatUser;
 }
 
@@ -372,7 +399,7 @@ async function makePublicMessage(socket, roomId, content) {
     id: user._id,
     username: user.name,
     isHost: me.isHost,
-  }
+  };
 
   const message = {
     id: uuidv4(),
@@ -380,8 +407,8 @@ async function makePublicMessage(socket, roomId, content) {
     content,
     isPrivate: false,
     timestamp: new Date(),
-  }
-  
+  };
+
   return message;
 }
 
@@ -390,7 +417,11 @@ async function makeDM(socket, roomId, content, recipientId) {
   if (!user) throw new CustomError("USER_001", "없는 유저입니다. 누구세요...?");
 
   const recipient = await User.findById(recipientId);
-  if (!recipient) throw new CustomError("USER_001", "없는 유저(귀신)에게는 디엠을 보낼 수 없어요.");
+  if (!recipient)
+    throw new CustomError(
+      "USER_001",
+      "없는 유저(귀신)에게는 디엠을 보낼 수 없어요."
+    );
 
   const roomSockets = await getUsersInRoom(roomId);
   const me = roomSockets.find((p) => p.userId === socket.userId);
@@ -399,7 +430,7 @@ async function makeDM(socket, roomId, content, recipientId) {
     id: user._id,
     username: user.name,
     isHost: me.isHost,
-  }
+  };
 
   const message = {
     id: uuidv4(),
@@ -408,8 +439,8 @@ async function makeDM(socket, roomId, content, recipientId) {
     content,
     isPrivate: true,
     timestamp: new Date(),
-  }
-  
+  };
+
   return message;
 }
 
